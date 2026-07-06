@@ -51,8 +51,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Explicitly defining MaterialTheme to ensure attributes exist
-            MaterialTheme(colorScheme = lightColorScheme()) {
+            // Using default MaterialTheme which picks up the theme defined in Manifest
+            MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
