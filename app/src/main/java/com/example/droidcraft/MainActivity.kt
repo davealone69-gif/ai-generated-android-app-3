@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     PomodoroApp()
-                }
+                } 
             }
         }
     }
@@ -61,15 +61,12 @@ enum class TimerMode(val displayName: String, val defaultMinutes: Int, val prima
 
 @Composable
 fun PomodoroApp() {
-    // Current state configurations
     var currentMode by rememberSaveable { mutableStateOf(TimerMode.WORK) }
     
-    // Custom durations managed in minutes
     var workDurationSetting by rememberSaveable { mutableStateOf(25) }
     var shortBreakDurationSetting by rememberSaveable { mutableStateOf(5) }
     var longBreakDurationSetting by rememberSaveable { mutableStateOf(15) }
 
-    // Dynamic current max duration
     val currentMaxDurationSeconds = remember(currentMode, workDurationSetting, shortBreakDurationSetting, longBreakDurationSetting) {
         when (currentMode) {
             TimerMode.WORK -> workDurationSetting * 60
@@ -78,31 +75,26 @@ fun PomodoroApp() {
         }
     }
 
-    // Active timer tracking
     var secondsLeft by rememberSaveable { mutableStateOf(currentMaxDurationSeconds) }
     var isTimerRunning by rememberSaveable { mutableStateOf(false) }
 
-    // Synchronize secondsLeft if max configuration or mode changes while timer isn't running
     LaunchedEffect(currentMaxDurationSeconds) {
         if (!isTimerRunning) {
             secondsLeft = currentMaxDurationSeconds
         }
     }
 
-    // Statistics state
     var completedWorkSessions by rememberSaveable { mutableStateOf(0) }
     var completedShortBreaks by rememberSaveable { mutableStateOf(0) }
     var completedLongBreaks by rememberSaveable { mutableStateOf(0) }
     var totalMinutesFocused by rememberSaveable { mutableStateOf(0) }
 
-    // Ticking Timer Engine
     LaunchedEffect(isTimerRunning, secondsLeft) {
         if (isTimerRunning && secondsLeft > 0) {
             delay(1000L)
             secondsLeft--
         } else if (isTimerRunning && secondsLeft == 0) {
             isTimerRunning = false
-            // Record stats completion
             when (currentMode) {
                 TimerMode.WORK -> {
                     completedWorkSessions++
@@ -115,7 +107,6 @@ fun PomodoroApp() {
                     completedLongBreaks++
                 }
             }
-            // Transition warning or auto-reset state
             secondsLeft = currentMaxDurationSeconds
         }
     }
@@ -127,7 +118,6 @@ fun PomodoroApp() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // App Title
         Text(
             text = "Droid Pomodoro",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -146,7 +136,6 @@ fun PomodoroApp() {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Segmented Mode Chooser
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -183,12 +172,11 @@ fun PomodoroApp() {
                         textAlign = TextAlign.Center
                     )
                 }
-            }
+            } 
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Progress Ring Section
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(260.dp)
@@ -199,29 +187,36 @@ fun PomodoroApp() {
                 1f
             }
 
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(modifier = Modifier.fillMaxSize()) { 
                 val strokeWidth = 14.dp.toPx()
-                // Track arc
+                val diameter = size.minDimension - strokeWidth * 2
+                val topLeftOffset = androidx.compose.ui.geometry.Offset(
+                    (size.width - diameter) / 2,
+                    (size.height - diameter) / 2
+                )
+                val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
+
                 drawCircle(
                     color = Color(0xFF2E2E2E),
-                    radius = size.minDimension / 2 - strokeWidth,
+                    radius = diameter / 2,
                     style = Stroke(width = strokeWidth)
                 )
-                // Remaining active progress arc
+
                 drawArc(
                     color = currentMode.primaryColor,
                     startAngle = -90f,
                     sweepAngle = 360f * progressFraction,
                     useCenter = false,
+                    topLeft = topLeftOffset,
+                    size = arcSize,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )
             }
 
-            // Central time layout
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 val displayMin = secondsLeft / 60
                 val displaySec = secondsLeft % 60
-                val formattedTime = String.format("%02d:%02d", displayMin, displaySec)
+                val formattedTime = "${displayMin.toString().padStart(2, '0')}:${displaySec.toString().padStart(2, '0')}"
 
                 Text(
                     text = formattedTime,
@@ -247,13 +242,11 @@ fun PomodoroApp() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Core Controls (Play, Pause, Reset, Skip)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Reset / Skip back Button
             IconButton(
                 onClick = {
                     isTimerRunning = false
@@ -272,7 +265,6 @@ fun PomodoroApp() {
 
             Spacer(modifier = Modifier.width(24.dp))
 
-            // Play / Pause central CTA
             Button(
                 onClick = { isTimerRunning = !isTimerRunning },
                 colors = ButtonDefaults.buttonColors(
@@ -292,10 +284,8 @@ fun PomodoroApp() {
 
             Spacer(modifier = Modifier.width(24.dp))
 
-            // Fast forward or skip to full time button
             IconButton(
                 onClick = {
-                    // Quick skip helper (triggers state completion safely)
                     secondsLeft = 0
                 },
                 modifier = Modifier
@@ -303,7 +293,7 @@ fun PomodoroApp() {
                     .background(Color(0xFF262626), CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow, // Simulates forward action
+                    imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Complete Session Instantly",
                     tint = Color.LightGray
                 )
@@ -312,7 +302,6 @@ fun PomodoroApp() {
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // Custom Duration Adjusters inside collapsible setting cards
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
@@ -327,7 +316,6 @@ fun PomodoroApp() {
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // Adjust Work Setting Row
                 DurationAdjustmentRow(
                     label = "Work Session",
                     minutes = workDurationSetting,
@@ -342,7 +330,6 @@ fun PomodoroApp() {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Adjust Short Break Setting Row
                 DurationAdjustmentRow(
                     label = "Short Break",
                     minutes = shortBreakDurationSetting,
@@ -357,7 +344,6 @@ fun PomodoroApp() {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Adjust Long Break Setting Row
                 DurationAdjustmentRow(
                     label = "Long Break",
                     minutes = longBreakDurationSetting,
@@ -374,7 +360,6 @@ fun PomodoroApp() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Statistics Panel
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
@@ -471,7 +456,7 @@ fun DurationAdjustmentRow(
             color = Color.White
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) { 
             IconButton(
                 onClick = onDecrease,
                 modifier = Modifier
