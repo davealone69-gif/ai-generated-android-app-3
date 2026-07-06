@@ -21,7 +21,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
 
 data class Habit(val id: Int, val name: String, var isDone: Boolean)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
@@ -37,7 +40,7 @@ fun HabitTrackerScreen() {
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(title = { Text("My Daily Habits") })
+            TopAppBar(title = { Text("My Daily Habits") })
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
