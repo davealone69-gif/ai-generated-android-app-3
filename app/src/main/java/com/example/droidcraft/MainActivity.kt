@@ -3,48 +3,60 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.util.concurrent.TimeUnit
 
-// Constants for durations
-private const val POMODORO_DURATION_MINUTES = 25L
-private const val SHORT_BREAK_DURATION_MINUTES = 5L
-private const val LONG_BREAK_DURATION_MINUTES = 15L
-private const val POMODOROS_PER_LONG_BREAK = 4
+// Constants for Pomodoro durations
+private val POMODORO_DURATION_MILLIS = TimeUnit.MINUTES.toMillis(25)
+private val SHORT_BREAK_DURATION_MILLIS = TimeUnit.MINUTES.toMillis(5)
+private val LONG_BREAK_DURATION_MILLIS = TimeUnit.MINUTES.toMillis(15)
+private const val LONG_BREAK_INTERVAL = 4 // Take a long break after every N Pomodoros
 
-// Enums for timer state and mode
-enum class TimerState { IDLE, RUNNING, PAUSED }
-enum class TimerMode { POMODORO, SHORT_BREAK, LONG_BREAK }
+/**
+ * Represents the current state of the timer.
+ */
+enum class TimerState {
+    IDLE, RUNNING, PAUSED
+}
+
+/**
+ * Represents the type of the current session.
+ */
+enum class SessionType {
+    POMODORO, SHORT_BREAK, LONG_BREAK
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Using MaterialTheme provides default colors and typography
+            // Providing MaterialTheme for the entire app for proper styling
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PomodoroAppScreen()
+                // A surface container using the 'background' color from the theme
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainAppScreen()
                 }
             }
         }
@@ -52,267 +64,247 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PomodoroAppScreen() {
-    // State variables
-    var currentTimerMode by remember { mutableStateOf(TimerMode.POMODORO) }
+fun MainAppScreen() {
+    // State variables for the Pomodoro timer logic
     var timerState by remember { mutableStateOf(TimerState.IDLE) }
-    var timeRemainingMillis by remember { mutableStateOf(0L) }
-    var initialDurationMillis by remember { mutableStateOf(0L) } // Total duration for current mode
-    var totalPomodorosCompleted by remember { mutableStateOf(0) }
-    var pomodorosSinceLastLongBreak by remember { mutableStateOf(0) }
+    var sessionType by remember { mutableStateOf(SessionType.POMODORO) }
+    var timeRemainingMillis by remember { mutableStateOf(POMODORO_DURATION_MILLIS) }
+    var totalPomodoroCompleted by remember { mutableStateOf(0) }
+    var pomodorosInCycle by remember { mutableStateOf(0) } // Tracks Pomodoros for long break logic
 
-    // Initialize timer duration based on current mode or reset if needed
-    LaunchedEffect(currentTimerMode) {
-        val duration = when (currentTimerMode) {
-            TimerMode.POMODORO -> POMODORO_DURATION_MINUTES
-            TimerMode.SHORT_BREAK -> SHORT_BREAK_DURATION_MINUTES
-            TimerMode.LONG_BREAK -> LONG_BREAK_DURATION_MINUTES
-        }
-        initialDurationMillis = TimeUnit.MINUTES.toMillis(duration)
-        if (timerState == TimerState.IDLE) {
-            timeRemainingMillis = initialDurationMillis
+    // Calculate the total duration for the current session type, used for progress calculation
+    val initialTotalDurationMillis = remember(sessionType) {
+        when (sessionType) {
+            SessionType.POMODORO -> POMODORO_DURATION_MILLIS
+            SessionType.SHORT_BREAK -> SHORT_BREAK_DURATION_MILLIS
+            SessionType.LONG_BREAK -> LONG_BREAK_DURATION_MILLIS
         }
     }
 
-    // Timer countdown logic
-    LaunchedEffect(timerState, timeRemainingMillis) {
-        if (timerState == TimerState.RUNNING && timeRemainingMillis > 0) {
-            while (timeRemainingMillis > 0 && timerState == TimerState.RUNNING) {
-                delay(1000L)
-                timeRemainingMillis -= 1000L
-                if (timeRemainingMillis <= 0) {
-                    timeRemainingMillis = 0
-                    timerState = TimerState.IDLE // Timer finished
-                    handleTimerCompletion(
-                        currentTimerMode,
-                        totalPomodorosCompleted,
-                        pomodorosSinceLastLongBreak
-                    ) { newMode, newTotalPomodoros, newPomodorosSinceLastLongBreak ->
-                        currentTimerMode = newMode
-                        totalPomodorosCompleted = newTotalPomodoros
-                        pomodorosSinceLastLongBreak = newPomodorosSinceLastLongBreak
+    // LaunchedEffect to handle the timer countdown logic
+    LaunchedEffect(timerState, sessionType) {
+        // This effect will restart whenever timerState or sessionType changes.
+        // It only runs when the timer is in the RUNNING state.
+        if (timerState == TimerState.RUNNING) {
+            // Loop while there's time remaining and the coroutine is active
+            while (timeRemainingMillis > 0 && isActive) {
+                delay(1000L) // Wait for 1 second before decrementing
+                // Decrement time, ensuring it doesn't go below zero
+                timeRemainingMillis = (timeRemainingMillis - 1000L).coerceAtLeast(0L)
+            }
+
+            // If the timer reached 0 and the effect wasn't cancelled (e.g., by pausing or resetting)
+            if (timeRemainingMillis <= 0 && isActive) {
+                when (sessionType) {
+                    SessionType.POMODORO -> {
+                        totalPomodoroCompleted++
+                        pomodorosInCycle++
+                        // Check if it's time for a long break
+                        if (pomodorosInCycle % LONG_BREAK_INTERVAL == 0) {
+                            sessionType = SessionType.LONG_BREAK
+                            timeRemainingMillis = LONG_BREAK_DURATION_MILLIS
+                        } else {
+                            sessionType = SessionType.SHORT_BREAK
+                            timeRemainingMillis = SHORT_BREAK_DURATION_MILLIS
+                        }
+                    }
+                    // After a break, transition back to a Pomodoro session
+                    SessionType.SHORT_BREAK, SessionType.LONG_BREAK -> {
+                        sessionType = SessionType.POMODORO
+                        timeRemainingMillis = POMODORO_DURATION_MILLIS
                     }
                 }
+                timerState = TimerState.IDLE // Automatically stop after session completion
             }
         }
     }
 
-    // Progress animation for the ring
-    val progress = if (initialDurationMillis > 0) {
-        1f - (timeRemainingMillis.toFloat() / initialDurationMillis.toFloat())
-    } else 0f
-
-    val animatedProgress = remember { Animatable(0f) }
-    LaunchedEffect(progress) {
-        animatedProgress.animateTo(
-            targetValue = progress,
-            animationSpec = tween(durationMillis = 500, easing = LinearEasing)
-        )
-    }
-
-    // Helper functions for timer control
-    fun startTimer() { timerState = TimerState.RUNNING }
-    fun pauseTimer() { timerState = TimerState.PAUSED }
-    fun resetTimer() {
-        timerState = TimerState.IDLE
-        timeRemainingMillis = initialDurationMillis
-    }
-    fun skipTimer() {
-        // Force timer completion logic
-        timeRemainingMillis = 0 // Setting to 0 will trigger LaunchedEffect completion logic
-        timerState = TimerState.IDLE // Ensures LaunchedEffect stops and handles completion
-    }
-
-    fun setModeAndReset(mode: TimerMode) {
-        currentTimerMode = mode
-        // Explicitly set timerState to IDLE so LaunchedEffect(currentTimerMode) resets timeRemainingMillis
-        timerState = TimerState.IDLE
-    }
-
+    // Main UI structure
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .background(MaterialTheme.colorScheme.background),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceAround
     ) {
-        // Mode selection buttons
+        // Display current session type
+        Text(
+            text = when (sessionType) {
+                SessionType.POMODORO -> "Pomodoro Session"
+                SessionType.SHORT_BREAK -> "Short Break"
+                SessionType.LONG_BREAK -> "Long Break"
+            },
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Progress Ring and Timer Display
+        PomodoroProgressRing(
+            modifier = Modifier.size(250.dp),
+            // Progress is calculated as elapsed time (0.0 to 1.0)
+            progress = 1f - (timeRemainingMillis.toFloat() / initialTotalDurationMillis.toFloat()),
+            timeRemainingMillis = timeRemainingMillis
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Control Buttons (Start/Pause and Reset)
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ModeButton(
-                text = "Pomodoro",
-                isSelected = currentTimerMode == TimerMode.POMODORO,
-                onClick = { setModeAndReset(TimerMode.POMODORO) }
-            )
-            ModeButton(
-                text = "Short Break",
-                isSelected = currentTimerMode == TimerMode.SHORT_BREAK,
-                onClick = { setModeAndReset(TimerMode.SHORT_BREAK) }
-            )
-            ModeButton(
-                text = "Long Break",
-                isSelected = currentTimerMode == TimerMode.LONG_BREAK,
-                onClick = { setModeAndReset(TimerMode.LONG_BREAK) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Timer display with progress ring
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(240.dp)
-        ) {
-            // Background ring
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawArc(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    startAngle = 0f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset(10.dp.toPx(), 10.dp.toPx()),
-                    size = Size(size.width - 20.dp.toPx(), size.height - 20.dp.toPx()),
-                    style = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)
+            // Start/Pause Button
+            Button(
+                onClick = {
+                    timerState = when (timerState) {
+                        TimerState.IDLE, TimerState.PAUSED -> TimerState.RUNNING
+                        TimerState.RUNNING -> TimerState.PAUSED
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = if (timerState == TimerState.RUNNING) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (timerState == TimerState.RUNNING) "Pause" else "Start",
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
-            }
-            // Progress ring
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawArc(
-                    color = MaterialTheme.colorScheme.primary,
-                    startAngle = -90f, // Start from top
-                    sweepAngle = animatedProgress.value * 360f,
-                    useCenter = false,
-                    topLeft = Offset(10.dp.toPx(), 10.dp.toPx()),
-                    size = Size(size.width - 20.dp.toPx(), size.height - 20.dp.toPx()),
-                    style = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Round)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (timerState == TimerState.RUNNING) "Pause" else "Start",
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
-            Text(
-                text = formatTime(timeRemainingMillis),
-                style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            // Reset Button
+            Button(
+                onClick = {
+                    timerState = TimerState.IDLE // Stop the timer
+                    sessionType = SessionType.POMODORO // Reset to Pomodoro session
+                    timeRemainingMillis = POMODORO_DURATION_MILLIS // Reset time to Pomodoro default
+                    pomodorosInCycle = 0 // Reset cycle count for long break logic
+                    // totalPomodoroCompleted is intentionally not reset, as it's a statistic.
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Reset",
+                    tint = MaterialTheme.colorScheme.onError
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Reset",
+                    color = MaterialTheme.colorScheme.onError
+                )
+            }
         }
-
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Control buttons
-        Row(
+        // Statistics Card
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         ) {
-            Button(onClick = { resetTimer() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reset")
-                Spacer(Modifier.width(8.dp))
-                Text("Reset")
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Statistics",
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Pomodoros Completed: $totalPomodoroCompleted",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // Display remaining Pomodoros until the next long break
+                val remainingForLongBreak = LONG_BREAK_INTERVAL - (pomodorosInCycle % LONG_BREAK_INTERVAL)
+                Text(
+                    text = "Pomodoros in current cycle: $pomodorosInCycle " +
+                            if (remainingForLongBreak == LONG_BREAK_INTERVAL) "(Long break after $LONG_BREAK_INTERVAL more)"
+                            else "(Next long break after $remainingForLongBreak more)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Button(onClick = {
-                if (timerState == TimerState.RUNNING) pauseTimer() else startTimer()
-            }) {
-                if (timerState == TimerState.RUNNING) {
-                    Icon(Icons.Default.Pause, contentDescription = "Pause")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Pause")
-                } else {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Start")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Start")
-                }
-            }
-            Button(onClick = { skipTimer() }) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Skip")
-                Spacer(Modifier.width(8.dp))
-                Text("Skip")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Statistics
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Statistics",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Pomodoros completed: $totalPomodorosCompleted",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            val pomodorosUntilLongBreakDisplay = POMODOROS_PER_LONG_BREAK - pomodorosSinceLastLongBreak
-            Text(
-                text = "Pomodoros until long break: $pomodorosUntilLongBreakDisplay",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
         }
     }
 }
 
 @Composable
-fun ModeButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    FilledTonalButton(
-        onClick = onClick,
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    ) {
-        Text(text)
-    }
-}
-
-/**
- * Formats milliseconds into a MM:SS string.
- */
-private fun formatTime(millis: Long): String {
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(millis)
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) -
-            TimeUnit.MINUTES.toSeconds(minutes)
-    return String.format("%02d:%02d", minutes, seconds)
-}
-
-/**
- * Handles the logic for transitioning between timer modes and updating statistics
- * when a timer segment completes.
- */
-private fun handleTimerCompletion(
-    currentMode: TimerMode,
-    totalPomodoros: Int,
-    pomodorosSinceBreak: Int,
-    onStateChange: (newMode: TimerMode, newTotalPomodoros: Int, newPomodorosSinceLastLongBreak: Int) -> Unit
+fun PomodoroProgressRing(
+    modifier: Modifier = Modifier,
+    progress: Float, // Represents elapsed progress from 0.0 (start) to 1.0 (end)
+    timeRemainingMillis: Long
 ) {
-    var newMode = currentMode
-    var newTotalPomodoros = totalPomodoros
-    var newPomodorosSinceLastLongBreak = pomodorosSinceBreak
+    // Animate the progress value for a smooth visual transition of the ring
+    val animatedProgress = animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing) // Animates over 1 second
+    ).value
 
-    when (currentMode) {
-        TimerMode.POMODORO -> {
-            newTotalPomodoros++
-            newPomodorosSinceLastLongBreak++
-            if (newPomodorosSinceLastLongBreak >= POMODOROS_PER_LONG_BREAK) {
-                newMode = TimerMode.LONG_BREAK
-                newPomodorosSinceLastLongBreak = 0 // Reset for the next cycle of pomodoros
-            } else {
-                newMode = TimerMode.SHORT_BREAK
-            }
+    // Determine colors from the current MaterialTheme
+    val ringColor = MaterialTheme.colorScheme.primary
+    val backgroundColor = MaterialTheme.colorScheme.primaryContainer
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 12.dp.toPx() // Convert DP to pixels for Canvas drawing
+            val sweepAngle = animatedProgress * 360f // Calculate sweep angle based on animated progress
+
+            // Draw the background circle (the track)
+            drawCircle(
+                color = backgroundColor,
+                radius = size.minDimension / 2f,
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Draw the progress arc, starting from the top (-90 degrees)
+            drawArc(
+                color = ringColor,
+                startAngle = -90f, // Start from the 12 o'clock position
+                sweepAngle = sweepAngle,
+                useCenter = false, // Do not connect ends to the center
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round) // Rounded ends for the arc
+            )
         }
-        TimerMode.SHORT_BREAK -> {
-            newMode = TimerMode.POMODORO
-        }
-        TimerMode.LONG_BREAK -> {
-            newMode = TimerMode.POMODORO
-            // pomodorosSinceLastLongBreak is already reset to 0 when long break is chosen
+
+        // Display the time remaining in MM:SS format
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(timeRemainingMillis)
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(timeRemainingMillis) % 60
+        Text(
+            text = String.format("%02d:%02d", minutes, seconds), // Format to ensure two digits
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewMainAppScreen() {
+    // Provide MaterialTheme and Surface for the preview to render correctly
+    MaterialTheme {
+        Surface {
+            MainAppScreen()
         }
     }
-    onStateChange(newMode, newTotalPomodoros, newPomodorosSinceLastLongBreak)
 }
