@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // Use the app theme defined in themes.xml
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     HabitTrackerScreen()
@@ -29,14 +30,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Habit(val id: Int, val name: String, var isDone: Boolean)
+data class Habit(val id: Int, val name: String, val isDone: Boolean)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
-    var idCounter by remember { mutableStateOf(0) }
+    var idCounter by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
