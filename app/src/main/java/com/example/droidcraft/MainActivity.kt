@@ -51,8 +51,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Apply MaterialTheme
-            MaterialTheme {
+            // Explicitly defining MaterialTheme to ensure attributes exist
+            MaterialTheme(colorScheme = lightColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -107,7 +107,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                 items(habits, key = { it.id }) { habit ->
                     val containerColor by animateColorAsState(
                         if (habit.isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), label = ""
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), label = "color"
                     )
 
                     Card(
