@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Use a valid Material3 base theme as the parent -->
+    <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@android:color/holo_blue_dark</item>
         <item name="colorSecondary">@android:color/holo_green_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 </resources>
