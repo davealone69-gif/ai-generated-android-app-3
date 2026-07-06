@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Use the Material3 DayNight parent -->
+    <!-- Use the correct Material3 parent from the library -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary brand color -->
+        <!-- Define colors explicitly to satisfy the build system -->
         <item name="colorPrimary">@android:color/holo_blue_dark</item>
-        <!-- Secondary brand color -->
         <item name="colorSecondary">@android:color/holo_green_dark</item>
-        <!-- Background color -->
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">?android:windowBackground</item>
     </style>
 </resources>
