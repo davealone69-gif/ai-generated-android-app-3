@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Apply the theme defined in themes.xml through MaterialTheme
+            // Apply MaterialTheme
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
@@ -78,8 +78,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
             )
         }
     ) { padding ->
@@ -96,8 +95,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                     IconButton(onClick = submitHabit, enabled = habitName.isNotBlank()) {
                         Icon(Icons.Default.Add, contentDescription = "Add Habit")
                     }
-                },
-                shape = MaterialTheme.shapes.large
+                }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -109,14 +107,12 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                 items(habits, key = { it.id }) { habit ->
                     val containerColor by animateColorAsState(
                         if (habit.isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), 
-                        label = "color"
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), label = ""
                     )
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = containerColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        colors = CardDefaults.cardColors(containerColor = containerColor)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
