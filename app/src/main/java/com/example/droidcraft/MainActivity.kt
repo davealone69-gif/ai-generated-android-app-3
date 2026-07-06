@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +56,8 @@ fun HabitTrackerApp() {
             IconButton(
                 onClick = {
                     if (newHabitName.isNotBlank()) {
-                        habits = habits + Habit(habits.size + 1, newHabitName)
+                        val newHabit = Habit(habits.size + 1, newHabitName)
+                        habits = habits + newHabit
                         newHabitName = ""
                     }
                 },
@@ -67,7 +68,7 @@ fun HabitTrackerApp() {
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(habits) { habit ->
+            items(habits, key = { it.id }) { habit ->
                 HabitItem(
                     habit = habit,
                     onToggle = {
