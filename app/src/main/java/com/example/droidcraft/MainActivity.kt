@@ -20,9 +20,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Use the app theme defined in themes.xml
+            // Apply the custom theme defined in themes.xml via MaterialTheme
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     HabitTrackerScreen()
                 }
             }
@@ -81,7 +84,9 @@ fun HabitTrackerScreen() {
                             )
                             IconButton(onClick = {
                                 val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isDone = !habit.isDone)
+                                if (index != -1) {
+                                    habits[index] = habit.copy(isDone = !habit.isDone)
+                                }
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
