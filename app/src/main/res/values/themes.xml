@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme inheriting from Material3 -->
+    <!-- Base application theme -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary branding color -->
+        <!-- Primary branding colors -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/purple_500</item>
-        
-        <!-- Status bar color -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
 </resources>
