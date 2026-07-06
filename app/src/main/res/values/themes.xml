@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Use the correct Material3 theme path -->
+    <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@android:color/holo_blue_dark</item>
-        <item name="colorSecondary">@android:color/holo_green_dark</item>
+        <!-- Customize your light theme here -->
+        <item name="colorPrimary">@android:color/system_accent1_700</item>
+        <item name="colorSecondary">@android:color/system_accent2_700</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
     </style>
 </resources>
