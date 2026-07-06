@@ -2,9 +2,9 @@
 <resources>
     <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here -->
-        <item name="colorPrimary">@android:color/system_accent1_700</item>
-        <item name="colorSecondary">@android:color/system_accent2_700</item>
+        <!-- Customize your theme using standard resources -->
+        <item name="colorPrimary">@android:color/holo_blue_dark</item>
+        <item name="colorSecondary">@android:color/holo_green_dark</item>
         <item name="android:windowBackground">?android:attr/colorBackground</item>
     </style>
 </resources>
