@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Apply the theme defined in themes.xml via MaterialTheme
+            // MaterialTheme picks up styles from themes.xml via the activity context
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
