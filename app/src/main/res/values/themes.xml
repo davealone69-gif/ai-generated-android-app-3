@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Define colors to ensure they are available for the theme -->
+    <color name="purple_500">#6200EE</color>
+    <color name="teal_200">#03DAC5</color>
+
     <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
-        <item name="colorPrimary">@android:color/system_accent1_700</item>
-        <item name="colorSecondary">@android:color/system_accent2_700</item>
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorSecondary">@color/teal_200</item>
     </style>
 </resources>
