@@ -23,7 +23,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            HabitTrackerApp()
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    HabitTrackerApp()
+                }
+            }
         }
     }
 }
@@ -66,7 +70,9 @@ fun HabitTrackerApp() {
                         newHabitName = ""
                     }
                 },
-                modifier = Modifier.align(Alignment.CenterVertically).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White)
             }
