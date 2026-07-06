@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base application theme. -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your theme here -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="android:statusBarColor">?attr/colorPrimary</item>
+        <item name="colorSecondary">@color/purple_500</item>
     </style>
 </resources>
