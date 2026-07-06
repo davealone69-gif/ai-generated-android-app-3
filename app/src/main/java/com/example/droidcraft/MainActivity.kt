@@ -26,7 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 // Data Model
 data class Habit(val id: Int, val name: String, val isDone: Boolean)
 
-// ViewModel for Business Logic and State Persistence
+// ViewModel
 class HabitViewModel : ViewModel() {
     private val _habits = mutableStateListOf<Habit>()
     val habits: List<Habit> get() = _habits
