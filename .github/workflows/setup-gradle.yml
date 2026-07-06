@@ -9,16 +9,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Gradle 8.5
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create temporary gradle project and extract wrapper
+        run: |
+          mkdir -p /tmp/gradle-init
+          cd /tmp/gradle-init
+          gradle init --type basic --dsl kotlin --project-name temp --no-split-project || true
+          ls -la gradle/wrapper/
+          
+      - name: Copy wrapper JAR to repo
         run: |
           mkdir -p gradle/wrapper
-          cd gradle/wrapper
-          curl -L https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle-8.5-bin.zip
-          unzip -j gradle-8.5-bin.zip "gradle-8.5/lib/gradle-wrapper.jar"
-          rm gradle-8.5-bin.zip
-
-      - name: Verify wrapper JAR
-        run: ls -la gradle/wrapper/
+          cp /tmp/gradle-init/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/ || echo "JAR not found, trying alternate location"
+          ls -la gradle/wrapper/
 
       - name: Commit wrapper JAR
         run: |
