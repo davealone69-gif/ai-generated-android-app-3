@@ -1,8 +1,10 @@
 package com.example.droidcraft
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,33 +17,32 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import java.util.UUID
 
-// Data Model
-data class Habit(val id: Int, val name: String, val isDone: Boolean)
+data class Habit(val id: String = UUID.randomUUID().toString(), val name: String, val isDone: Boolean = false)
 
-// ViewModel
 class HabitViewModel : ViewModel() {
-    private val _habits = mutableStateListOf<Habit>()
-    val habits: List<Habit> get() = _habits
-    
-    private var idCounter = 0
+    private val _habits = MutableStateFlow<List<Habit>>(emptyList())
+    val habits: StateFlow<List<Habit>> = _habits.asStateFlow()
 
     fun addHabit(name: String) {
         if (name.isBlank()) return
-        _habits.add(Habit(idCounter++, name, false))
+        _habits.update { current -> current + Habit(name = name.trim()) }
     }
 
-    fun toggleHabit(habitId: Int) {
-        val index = _habits.indexOfFirst { it.id == habitId }
-        if (index != -1) {
-            _habits[index] = _habits[index].copy(isDone = !_habits[index].isDone)
+    fun toggleHabit(habitId: String) {
+        _habits.update { list ->
+            list.map { if (it.id == habitId) it.copy(isDone = !it.isDone) else it }
         }
     }
 }
@@ -50,7 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) {
+            MaterialTheme(colorScheme = dynamicLightColorScheme(this)) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -63,52 +64,58 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     var habitName by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val habits by viewModel.habits.collectAsState()
+    val view = LocalView.current
 
     val submitHabit = {
         if (habitName.isNotBlank()) {
             viewModel.addHabit(habitName)
             habitName = ""
-            keyboardController?.hide()
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Habits", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.padding(padding).padding(horizontal = 20.dp, vertical = 16.dp)) {
             OutlinedTextField(
                 value = habitName,
                 onValueChange = { habitName = it },
-                label = { Text("What do you want to achieve?") },
+                label = { Text("Enter a new habit") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { submitHabit() }),
                 trailingIcon = {
-                    IconButton(onClick = submitHabit) {
+                    IconButton(onClick = submitHabit, enabled = habitName.isNotBlank()) {
                         Icon(Icons.Default.Add, contentDescription = "Add Habit")
                     }
                 },
-                shape = MaterialTheme.shapes.medium
+                shape = MaterialTheme.shapes.large
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(items = viewModel.habits, key = { it.id }) { habit ->
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                items(habits, key = { it.id }) { habit ->
+                    val containerColor by animateColorAsState(
+                        if (habit.isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), 
+                        label = "color"
+                    )
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (habit.isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                            else MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        colors = CardDefaults.cardColors(containerColor = containerColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -119,11 +126,14 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyLarge
                             )
-                            IconButton(onClick = { viewModel.toggleHabit(habit.id) }) {
+                            IconButton(onClick = { 
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                viewModel.toggleHabit(habit.id) 
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Complete",
-                                    tint = if (habit.isDone) MaterialTheme.colorScheme.primary else Color.LightGray
+                                    contentDescription = "Toggle completion",
+                                    tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                                 )
                             }
                         }
