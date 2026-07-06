@@ -4,8 +4,5 @@
         <item name="colorPrimary">@android:color/holo_blue_dark</item>
         <item name="colorSecondary">@android:color/holo_green_dark</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <!-- Explicitly defining colorScheme attributes for Material3 compatibility -->
-        <item name="colorPrimary">@android:color/holo_blue_dark</item>
-        <item name="colorSecondary">@android:color/holo_green_dark</item>
     </style>
 </resources>
