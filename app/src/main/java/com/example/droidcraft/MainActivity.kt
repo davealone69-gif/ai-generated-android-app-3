@@ -15,14 +15,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
@@ -32,7 +34,7 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerScreen() {
     var habitList by remember { mutableStateOf(listOf<Habit>()) }
     var habitText by remember { mutableStateOf("") }
-    var idCounter by remember { mutableStateOf(0) }
+    var idCounter by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -71,8 +73,7 @@ fun HabitTrackerScreen() {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(habitList) { habit ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
