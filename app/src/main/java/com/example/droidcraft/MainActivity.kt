@@ -3,531 +3,249 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+// Enum to represent different types of Pomodoro sessions
+enum class SessionType {
+    WORK, SHORT_BREAK, LONG_BREAK
+}
+
+// Constants for session durations and logic
+const val WORK_DURATION_SECONDS = 25 * 60 // 25 minutes
+const val SHORT_BREAK_DURATION_SECONDS = 5 * 60 // 5 minutes
+const val LONG_BREAK_DURATION_SECONDS = 15 * 60 // 15 minutes
+const val POMODOROS_UNTIL_LONG_BREAK = 4 // Number of work sessions before a long break
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFFEF5350),
-                    background = Color(0xFF121212),
-                    surface = Color(0xFF1E1E1E),
-                    onPrimary = Color.White,
-                    onBackground = Color.White,
-                    onSurface = Color.White
-                )
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    PomodoroApp()
-                } 
+            // MaterialTheme provides default styling for Material3 components.
+            MaterialTheme {
+                PomodoroAppScreen()
             }
         }
     }
-}
-
-enum class TimerMode(val displayName: String, val defaultMinutes: Int, val primaryColor: Color) {
-    WORK("Work", 25, Color(0xFFEF5350)),
-    SHORT_BREAK("Short Break", 5, Color(0xFF66BB6A)),
-    LONG_BREAK("Long Break", 15, Color(0xFF42A5F5))
 }
 
 @Composable
-fun PomodoroApp() {
-    var currentMode by rememberSaveable { mutableStateOf(TimerMode.WORK) }
-    
-    var workDurationSetting by rememberSaveable { mutableStateOf(25) }
-    var shortBreakDurationSetting by rememberSaveable { mutableStateOf(5) }
-    var longBreakDurationSetting by rememberSaveable { mutableStateOf(15) }
+fun PomodoroAppScreen() {
+    // State for the timer
+    var currentSessionType by remember { mutableStateOf(SessionType.WORK) }
+    var timeInSeconds by remember { mutableStateOf(WORK_DURATION_SECONDS) }
+    var isRunning by remember { mutableStateOf(false) }
+    // Stores the initial duration of the *current* session for progress calculation
+    var initialSessionDuration by remember { mutableStateOf(WORK_DURATION_SECONDS) }
 
-    val currentMaxDurationSeconds = remember(currentMode, workDurationSetting, shortBreakDurationSetting, longBreakDurationSetting) {
-        when (currentMode) {
-            TimerMode.WORK -> workDurationSetting * 60
-            TimerMode.SHORT_BREAK -> shortBreakDurationSetting * 60
-            TimerMode.LONG_BREAK -> longBreakDurationSetting * 60
+    // State for statistics
+    var completedPomodoros by remember { mutableStateOf(0) }
+    var completedShortBreaks by remember { mutableStateOf(0) }
+    var completedLongBreaks by remember { mutableStateOf(0) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    // Helper function to get the duration for a given session type
+    fun getDurationForSession(type: SessionType): Int {
+        return when (type) {
+            SessionType.WORK -> WORK_DURATION_SECONDS
+            SessionType.SHORT_BREAK -> SHORT_BREAK_DURATION_SECONDS
+            SessionType.LONG_BREAK -> LONG_BREAK_DURATION_SECONDS
         }
     }
 
-    var secondsLeft by rememberSaveable { mutableStateOf(currentMaxDurationSeconds) }
-    var isTimerRunning by rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(currentMaxDurationSeconds) {
-        if (!isTimerRunning) {
-            secondsLeft = currentMaxDurationSeconds
-        }
-    }
-
-    var completedWorkSessions by rememberSaveable { mutableStateOf(0) }
-    var completedShortBreaks by rememberSaveable { mutableStateOf(0) }
-    var completedLongBreaks by rememberSaveable { mutableStateOf(0) }
-    var totalMinutesFocused by rememberSaveable { mutableStateOf(0) }
-
-    LaunchedEffect(isTimerRunning, secondsLeft) {
-        if (isTimerRunning && secondsLeft > 0) {
-            delay(1000L)
-            secondsLeft--
-        } else if (isTimerRunning && secondsLeft == 0) {
-            isTimerRunning = false
-            when (currentMode) {
-                TimerMode.WORK -> {
-                    completedWorkSessions++
-                    totalMinutesFocused += workDurationSetting
-                }
-                TimerMode.SHORT_BREAK -> {
-                    completedShortBreaks++
-                }
-                TimerMode.LONG_BREAK -> {
-                    completedLongBreaks++
+    // Function to transition to the next session based on current type and statistics
+    fun nextSession() {
+        isRunning = false // Always pause when transitioning to allow user to initiate next session
+        when (currentSessionType) {
+            SessionType.WORK -> {
+                completedPomodoros++
+                if (completedPomodoros % POMODOROS_UNTIL_LONG_BREAK == 0) {
+                    currentSessionType = SessionType.LONG_BREAK
+                } else {
+                    currentSessionType = SessionType.SHORT_BREAK
                 }
             }
-            secondsLeft = currentMaxDurationSeconds
+            SessionType.SHORT_BREAK -> {
+                completedShortBreaks++
+                currentSessionType = SessionType.WORK
+            }
+            SessionType.LONG_BREAK -> {
+                completedLongBreaks++
+                currentSessionType = SessionType.WORK
+            }
+        }
+        // Update initial duration and current time for the new session
+        initialSessionDuration = getDurationForSession(currentSessionType)
+        timeInSeconds = initialSessionDuration
+    }
+
+    // Timer logic using LaunchedEffect for side effects in Compose
+    LaunchedEffect(isRunning, timeInSeconds) {
+        if (isRunning && timeInSeconds > 0) {
+            delay(1000L) // Wait for 1 second
+            timeInSeconds--
+        } else if (isRunning && timeInSeconds == 0) {
+            // Session completed, transition to the next one
+            nextSession()
+            // The timer will be paused after nextSession(), user needs to click Start again.
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceAround // Distribute elements vertically
     ) {
+        // Current Session Title
         Text(
-            text = "Droid Pomodoro",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.SansSerif,
-                letterSpacing = 1.5.sp
-            ),
-            color = currentMode.primaryColor,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            text = when (currentSessionType) {
+                SessionType.WORK -> "Work Session"
+                SessionType.SHORT_BREAK -> "Short Break"
+                SessionType.LONG_BREAK -> "Long Break"
+            },
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-
-        Text(
-            text = "Boost your daily productivity safely",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF2C2C2C), RoundedCornerShape(12.dp))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            TimerMode.values().forEach { mode ->
-                val isSelected = currentMode == mode
-                val targetBgColor = if (isSelected) mode.primaryColor else Color.Transparent
-                val targetContentColor = if (isSelected) Color.White else Color.Gray
-
-                Button(
-                    onClick = {
-                        isTimerRunning = false
-                        currentMode = mode
-                        secondsLeft = when (mode) {
-                            TimerMode.WORK -> workDurationSetting * 60
-                            TimerMode.SHORT_BREAK -> shortBreakDurationSetting * 60
-                            TimerMode.LONG_BREAK -> longBreakDurationSetting * 60
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = targetBgColor,
-                        contentColor = targetContentColor
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Text(
-                        text = mode.displayName,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } 
-        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Timer Progress Ring and Display
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(260.dp)
+            modifier = Modifier.size(240.dp) // Larger size for the ring
         ) {
-            val progressFraction = if (currentMaxDurationSeconds > 0) {
-                secondsLeft.toFloat() / currentMaxDurationSeconds.toFloat()
-            } else {
-                1f
-            }
+            // Calculate progress for the CircularProgressIndicator
+            val progress = animateFloatAsState(
+                targetValue = if (initialSessionDuration > 0) {
+                    timeInSeconds.toFloat() / initialSessionDuration.toFloat()
+                } else 0f,
+                animationSpec = tween(durationMillis = 900, easing = LinearEasing),
+                label = "ProgressAnimation"
+            ).value
 
-            Canvas(modifier = Modifier.fillMaxSize()) { 
-                val strokeWidth = 14.dp.toPx()
-                val diameter = size.minDimension - strokeWidth * 2
-                val topLeftOffset = androidx.compose.ui.geometry.Offset(
-                    (size.width - diameter) / 2,
-                    (size.height - diameter) / 2
-                )
-                val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
-
-                drawCircle(
-                    color = Color(0xFF2E2E2E),
-                    radius = diameter / 2,
-                    style = Stroke(width = strokeWidth)
-                )
-
-                drawArc(
-                    color = currentMode.primaryColor,
-                    startAngle = -90f,
-                    sweepAngle = 360f * progressFraction,
-                    useCenter = false,
-                    topLeft = topLeftOffset,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val displayMin = secondsLeft / 60
-                val displaySec = secondsLeft % 60
-                val formattedTime = "${displayMin.toString().padStart(2, '0')}:${displaySec.toString().padStart(2, '0')}"
-
-                Text(
-                    text = formattedTime,
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    ),
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = currentMode.displayName.uppercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 2.sp
-                    ),
-                    color = currentMode.primaryColor
-                )
-            }
+            CircularProgressIndicator(
+                progress = progress,
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 16.dp, // Thicker stroke for the ring
+                color = MaterialTheme.colorScheme.tertiary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Text(
+                text = formatTime(timeInSeconds),
+                style = MaterialTheme.typography.displayLarge, // Larger text for time
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Control Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = {
-                    isTimerRunning = false
-                    secondsLeft = currentMaxDurationSeconds
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFF262626), CircleShape)
+            Button(
+                onClick = { isRunning = !isRunning },
+                // Enable Start/Pause if time is not zero or if it's currently paused
+                enabled = timeInSeconds > 0 || !isRunning
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Reset Timer",
-                    tint = Color.White
-                )
+                Text(if (isRunning) "Pause" else "Start")
             }
-
-            Spacer(modifier = Modifier.width(24.dp))
 
             Button(
-                onClick = { isTimerRunning = !isTimerRunning },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = currentMode.primaryColor,
-                    contentColor = Color.White
-                ),
-                shape = CircleShape,
-                modifier = Modifier.size(72.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(
-                    imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = "Start/Pause Timer",
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            IconButton(
                 onClick = {
-                    secondsLeft = 0
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFF262626), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Complete Session Instantly",
-                    tint = Color.LightGray
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Adjust Durations (minutes)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                DurationAdjustmentRow(
-                    label = "Work Session",
-                    minutes = workDurationSetting,
-                    onIncrease = {
-                        if (workDurationSetting < 90) workDurationSetting++
-                    },
-                    onDecrease = {
-                        if (workDurationSetting > 1) workDurationSetting--
-                    },
-                    accentColor = TimerMode.WORK.primaryColor
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DurationAdjustmentRow(
-                    label = "Short Break",
-                    minutes = shortBreakDurationSetting,
-                    onIncrease = {
-                        if (shortBreakDurationSetting < 45) shortBreakDurationSetting++
-                    },
-                    onDecrease = {
-                        if (shortBreakDurationSetting > 1) shortBreakDurationSetting--
-                    },
-                    accentColor = TimerMode.SHORT_BREAK.primaryColor
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DurationAdjustmentRow(
-                    label = "Long Break",
-                    minutes = longBreakDurationSetting,
-                    onIncrease = {
-                        if (longBreakDurationSetting < 60) longBreakDurationSetting++
-                    },
-                    onDecrease = {
-                        if (longBreakDurationSetting > 1) longBreakDurationSetting--
-                    },
-                    accentColor = TimerMode.LONG_BREAK.primaryColor
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Session Statistics",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-
-                    IconButton(
-                        onClick = {
-                            completedWorkSessions = 0
-                            completedShortBreaks = 0
-                            completedLongBreaks = 0
-                            totalMinutesFocused = 0
-                        },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Reset Stats",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    coroutineScope.launch { // Launch to manage state changes
+                        isRunning = false
+                        initialSessionDuration = getDurationForSession(currentSessionType)
+                        timeInSeconds = initialSessionDuration
                     }
-                }
+                },
+                // Enable Reset if not running, or if time is not at its initial value
+                enabled = !isRunning || timeInSeconds != initialSessionDuration
+            ) {
+                Text("Reset")
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    StatBox(
-                        value = completedWorkSessions.toString(),
-                        label = "Focus Session",
-                        icon = Icons.Default.CheckCircle,
-                        color = TimerMode.WORK.primaryColor,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    StatBox(
-                        value = (completedShortBreaks + completedLongBreaks).toString(),
-                        label = "Breaks Done",
-                        icon = Icons.Default.Check,
-                        color = TimerMode.SHORT_BREAK.primaryColor,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    StatBox(
-                        value = "${totalMinutesFocused}m",
-                        label = "Total Focus",
-                        icon = Icons.Default.Star,
-                        color = TimerMode.LONG_BREAK.primaryColor,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+            Button(
+                onClick = { coroutineScope.launch { nextSession() } },
+                // Skip is always enabled to allow quick transitions
+            ) {
+                Text("Skip")
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Statistics Section
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Statistics",
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Divider(modifier = Modifier.padding(horizontal = 48.dp, vertical = 4.dp))
+            StatisticRow("Pomodoros Completed:", completedPomodoros)
+            StatisticRow("Short Breaks Taken:", completedShortBreaks)
+            StatisticRow("Long Breaks Taken:", completedLongBreaks)
+            Divider(modifier = Modifier.padding(horizontal = 48.dp, vertical = 4.dp))
+        }
     }
 }
 
+/**
+ * Composable for displaying a single statistic row.
+ */
 @Composable
-fun DurationAdjustmentRow(
-    label: String,
-    minutes: Int,
-    onIncrease: () -> Unit,
-    onDecrease: () -> Unit,
-    accentColor: Color
-) {
+fun StatisticRow(label: String, value: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF2B2B2B), RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(vertical = 4.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = Color.White
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
         )
-
-        Row(verticalAlignment = Alignment.CenterVertically) { 
-            IconButton(
-                onClick = onDecrease,
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFF3A3A3A), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Decrease",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            Text(
-                text = "$minutes min",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = accentColor,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                textAlign = TextAlign.Center
-            )
-
-            IconButton(
-                onClick = onIncrease,
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFF3A3A3A), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Increase",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.5f)
+        )
     }
 }
 
-@Composable
-fun StatBox(
-    value: String,
-    label: String,
-    icon: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(Color(0xFF262626), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = color,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.White
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
-    }
+/**
+ * Helper function to format total seconds into a "MM:SS" string.
+ */
+fun formatTime(totalSeconds: Int): String {
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
