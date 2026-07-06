@@ -20,13 +20,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            HabitTrackerApp()
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerApp()
+                }
+            }
         }
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerApp() {
     var habitText by remember { mutableStateOf("") }
@@ -35,7 +40,7 @@ fun HabitTrackerApp() {
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(title = { Text("Daily Habit Tracker") })
+            TopAppBar(title = { Text("Daily Habit Tracker") })
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
