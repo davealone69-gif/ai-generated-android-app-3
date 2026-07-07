@@ -1,11 +1,2 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.2'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
-        classpath 'com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:1.9.22-1.0.17'
-    }
-}
+// Removed the buildscript block that caused KSP conflict with the app-level plugin declaration.
+// This file is now empty as build configuration is handled in app/build.gradle.kts and settings.gradle.kts.
