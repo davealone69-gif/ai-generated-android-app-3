@@ -2,8 +2,7 @@
 <resources>
     <!-- Use the Material3 DayNight parent -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorSecondary">@color/teal_200</item>
+        <!-- We use the default M3 colors, no need to override colorPrimary/Secondary manually -->
+        <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 </resources>
