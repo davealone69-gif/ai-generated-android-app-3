@@ -2,8 +2,9 @@
 <resources>
     <!-- Use the correct Material3 theme parent -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here -->
+        <!-- Customize your theme here using Material3 attributes -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
 </resources>
