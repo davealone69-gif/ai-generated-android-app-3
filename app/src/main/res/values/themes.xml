@@ -4,7 +4,4 @@
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
     </style>
-    
-    <color name="purple_500">#6200EE</color>
-    <color name="teal_200">#03DAC5</color>
 </resources>
