@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Use the correct Material3 parent theme -->
+    <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Define mandatory Material3 color attributes -->
+        <!-- Primary brand color -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSurface">@color/white</item>
-        
-        <!-- Ensure required Android window background matches -->
         <item name="android:windowBackground">@color/white</item>
     </style>
 </resources>
