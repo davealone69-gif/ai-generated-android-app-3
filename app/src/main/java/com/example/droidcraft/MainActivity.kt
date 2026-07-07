@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // Apply the theme defined in themes.xml
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerApp()
@@ -63,7 +64,7 @@ fun HabitTrackerApp() {
             Spacer(modifier = Modifier.height(16.dp))
             
             LazyColumn {
-                items(habits) { habit ->
+                items(habits, key = { it.id }) { habit ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -72,7 +73,9 @@ fun HabitTrackerApp() {
                             checked = habit.isCompleted,
                             onCheckedChange = { isChecked -> 
                                 val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isCompleted = isChecked)
+                                if (index != -1) {
+                                    habits[index] = habit.copy(isCompleted = isChecked)
+                                }
                             }
                         )
                         Text(
