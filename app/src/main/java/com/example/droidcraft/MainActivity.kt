@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // Apply the app theme defined in themes.xml
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
@@ -70,7 +71,7 @@ fun HabitTrackerScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(habits) { habit ->
+            items(habits, key = { it.id }) { habit ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -88,8 +89,10 @@ fun HabitTrackerScreen() {
                             fontWeight = if (habit.isCompleted) FontWeight.Bold else FontWeight.Normal
                         )
                         IconButton(onClick = {
-                            val index = habits.indexOf(habit)
-                            habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                            val index = habits.indexOfFirst { it.id == habit.id }
+                            if (index != -1) {
+                                habits[index] = habits[index].copy(isCompleted = !habit.isCompleted)
+                            }
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Check,
