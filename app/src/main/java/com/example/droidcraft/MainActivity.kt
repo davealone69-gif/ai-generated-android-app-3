@@ -20,12 +20,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
 
 data class Habit(val id: String = UUID.randomUUID().toString(), val name: String, val isCompleted: Boolean = false)
 
-class HabitViewModel : androidx.lifecycle.ViewModel() {
+class HabitViewModel : ViewModel() {
     var habits = mutableStateListOf<Habit>()
         private set
 
