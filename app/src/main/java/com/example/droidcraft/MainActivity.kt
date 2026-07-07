@@ -1,6 +1,5 @@
 package com.example.droidcraft
 
-import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -59,7 +58,7 @@ interface HabitDao {
     suspend fun delete(habit: Habit)
 }
 
-@Database(entities = [Habit::class], version = 1)
+@Database(entities = [Habit::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
 }
@@ -84,7 +83,9 @@ class HabitViewModel(private val dao: HabitDao) : ViewModel() {
 }
 
 class HabitViewModelFactory(private val dao: HabitDao) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = HabitViewModel(dao) as T
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return HabitViewModel(dao) as T
+    }
 }
 
 // --- UI Layer ---
@@ -154,7 +155,7 @@ fun HabitItem(habit: Habit, onToggle: () -> Unit, onDelete: () -> Unit) {
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val color by animateColorAsState(if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent)
+            val color by animateColorAsState(if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent, label = "")
             Box(Modifier.fillMaxSize().background(color, RoundedCornerShape(12.dp)).padding(end = 24.dp), contentAlignment = Alignment.CenterEnd) {
                 Icon(Icons.Default.Delete, "Delete", tint = Color.White)
             }
