@@ -5,6 +5,6 @@
         <!-- Customize your theme here using Material3 attributes -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
+        <item name="android:statusBarColor">@color/purple_700</item>
     </style>
 </resources>
