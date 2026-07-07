@@ -31,14 +31,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(0) }
+    var nextId by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
