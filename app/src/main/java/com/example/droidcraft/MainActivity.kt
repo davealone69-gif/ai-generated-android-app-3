@@ -15,13 +15,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            HabitTrackerApp()
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerApp()
+                }
+            }
         }
     }
 }
@@ -31,7 +35,7 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerApp() {
     var habitName by remember { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(0) }
+    var nextId by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -66,9 +70,9 @@ fun HabitTrackerApp() {
                     ) {
                         Checkbox(
                             checked = habit.isCompleted,
-                            onCheckedChange = { 
+                            onCheckedChange = { isChecked -> 
                                 val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isCompleted = it)
+                                habits[index] = habit.copy(isCompleted = isChecked)
                             }
                         )
                         Text(
