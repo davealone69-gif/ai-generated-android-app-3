@@ -3,7 +3,6 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -41,9 +39,8 @@ data class Habit(
 )
 
 sealed class HabitUiState {
-    object Loading : HabitUiState()
-    data class Success(val habits: List<Habit>) : HabitUiState()
     object Empty : HabitUiState()
+    data class Success(val habits: List<Habit>) : HabitUiState()
 }
 
 class HabitViewModel : ViewModel() {
@@ -102,8 +99,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
             )
         }
     ) { padding ->
@@ -125,8 +121,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                 keyboardActions = KeyboardActions(onDone = { 
                     viewModel.addHabit(habitText)
                     habitText = ""
-                }),
-                shape = MaterialTheme.shapes.extraLarge
+                })
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -136,7 +131,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                     Text("No habits yet. Start by adding one above!", color = MaterialTheme.colorScheme.outline)
                 }
                 is HabitUiState.Success -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(state.habits, key = { it.id }) { habit ->
+                    items(items = state.habits, key = { it.id }) { habit ->
                         HabitItem(
                             habit = habit,
                             onToggle = { viewModel.toggleHabit(habit.id) },
@@ -144,7 +139,6 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                         )
                     }
                 }
-                else -> Unit
             }
         }
     }
@@ -160,7 +154,7 @@ fun HabitItem(habit: Habit, onToggle: () -> Unit, onDelete: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
         Row(
-            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
