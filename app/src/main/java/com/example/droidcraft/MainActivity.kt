@@ -3,10 +3,12 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,8 +21,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -38,42 +42,40 @@ data class Habit(
     val isCompleted: Boolean = false
 )
 
-sealed class HabitUiState {
-    object Empty : HabitUiState()
-    data class Success(val habits: List<Habit>) : HabitUiState()
-}
+data class HabitUiState(
+    val habits: List<Habit> = emptyList(),
+    val isInputError: Boolean = false
+)
 
 class HabitViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow<HabitUiState>(HabitUiState.Empty)
+    private val _uiState = MutableStateFlow(HabitUiState())
     val uiState = _uiState.asStateFlow()
 
     fun addHabit(name: String) {
-        if (name.isBlank()) return
-        val newHabit = Habit(name = name)
-        _uiState.update { currentState ->
-            val currentList = if (currentState is HabitUiState.Success) currentState.habits else emptyList()
-            HabitUiState.Success(currentList + newHabit)
+        if (name.isBlank()) {
+            _uiState.update { it.copy(isInputError = true) }
+            return
         }
+        val newHabit = Habit(name = name.trim())
+        _uiState.update { it.copy(habits = it.habits + newHabit, isInputError = false) }
     }
 
     fun toggleHabit(id: String) {
-        _uiState.update { currentState ->
-            if (currentState is HabitUiState.Success) {
-                val updated = currentState.habits.map {
-                    if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
-                }
-                HabitUiState.Success(updated)
-            } else currentState
+        _uiState.update { state ->
+            state.copy(habits = state.habits.map {
+                if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+            })
         }
     }
 
     fun deleteHabit(id: String) {
-        _uiState.update { currentState ->
-            if (currentState is HabitUiState.Success) {
-                val updated = currentState.habits.filterNot { it.id == id }
-                if (updated.isEmpty()) HabitUiState.Empty else HabitUiState.Success(updated)
-            } else currentState
+        _uiState.update { state ->
+            state.copy(habits = state.habits.filterNot { it.id == id })
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(isInputError = false) }
     }
 }
 
@@ -81,7 +83,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) {
+            MaterialTheme(
+                colorScheme = lightColorScheme(
+                    primary = Color(0xFF6200EE),
+                    secondary = Color(0xFF03DAC6),
+                    surface = Color.White
+                )
+            ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -95,48 +103,56 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var habitText by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            CenterAlignedTopAppBar(
+                title = { Text("Daily Rituals", fontWeight = FontWeight.ExtraBold) }
             )
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
             OutlinedTextField(
                 value = habitText,
-                onValueChange = { habitText = it },
-                label = { Text("Add new habit") },
+                onValueChange = { 
+                    habitText = it
+                    if (uiState.isInputError) viewModel.clearError()
+                },
+                label = { Text("What habit are you tracking?") },
+                isError = uiState.isInputError,
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    IconButton(onClick = { 
-                        viewModel.addHabit(habitText)
-                        habitText = ""
+                    IconButton(onClick = {
+                        if (habitText.isNotBlank()) {
+                            viewModel.addHabit(habitText)
+                            habitText = ""
+                            focusManager.clearFocus()
+                        }
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Habit")
+                        Icon(Icons.Default.Add, contentDescription = "Add")
                     }
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { 
+                keyboardActions = KeyboardActions(onDone = {
                     viewModel.addHabit(habitText)
-                    habitText = ""
+                    if (!uiState.isInputError) {
+                        habitText = ""
+                        focusManager.clearFocus()
+                    }
                 })
             )
-
+            
             Spacer(modifier = Modifier.height(24.dp))
 
-            when (val state = uiState) {
-                is HabitUiState.Empty -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("No habits yet. Start by adding one above!", color = MaterialTheme.colorScheme.outline)
+            if (uiState.habits.isEmpty()) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("Your dashboard is clear. Build a new habit!", style = MaterialTheme.typography.bodyMedium)
                 }
-                is HabitUiState.Success -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(items = state.habits, key = { it.id }) { habit ->
-                        HabitItem(
-                            habit = habit,
-                            onToggle = { viewModel.toggleHabit(habit.id) },
-                            onDelete = { viewModel.deleteHabit(habit.id) }
-                        )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(items = uiState.habits, key = { it.id }) { habit ->
+                        HabitCard(habit, viewModel)
                     }
                 }
             }
@@ -145,13 +161,14 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
 }
 
 @Composable
-fun HabitItem(habit: Habit, onToggle: () -> Unit, onDelete: () -> Unit) {
-    val alpha by animateFloatAsState(if (habit.isCompleted) 0.6f else 1f, label = "alpha")
-    
+fun HabitCard(habit: Habit, viewModel: HabitViewModel) {
+    val alpha by animateFloatAsState(if (habit.isCompleted) 0.7f else 1f, label = "alpha")
+    val contentColor by animateColorAsState(if (habit.isCompleted) MaterialTheme.colorScheme.primary else Color.Unspecified, label = "color")
+
     Card(
         modifier = Modifier.fillMaxWidth().alpha(alpha),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -159,18 +176,19 @@ fun HabitItem(habit: Habit, onToggle: () -> Unit, onDelete: () -> Unit) {
         ) {
             Text(
                 text = habit.name,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f).semantics { contentDescription = "Habit name: ${habit.name}" }
+                style = MaterialTheme.typography.titleMedium,
+                color = contentColor,
+                modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = onToggle) {
+            IconButton(onClick = { viewModel.toggleHabit(habit.id) }) {
                 Icon(
                     imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.CheckCircle,
-                    contentDescription = "Toggle completion",
+                    contentDescription = "Toggle",
                     tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete habit", tint = MaterialTheme.colorScheme.error)
+            IconButton(onClick = { viewModel.deleteHabit(habit.id) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
