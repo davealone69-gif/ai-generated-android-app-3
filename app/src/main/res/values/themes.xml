@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Use the base Theme.Material3.DayNight.NoActionBar as the foundation -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme using Material3 compatible attributes -->
+        <!-- Customize Material3 color palette -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
+        
+        <!-- Ensure windowBackground is compatible with Material3 -->
         <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 </resources>
