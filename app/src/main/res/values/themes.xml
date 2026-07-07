@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base Material3 theme -->
+    <!-- Use the correct Material3 parent theme -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize colors using standard Material3 attributes -->
+        <!-- Define mandatory Material3 color attributes -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
         <item name="colorSurface">@color/white</item>
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
+        
+        <!-- Ensure required Android window background matches -->
+        <item name="android:windowBackground">@color/white</item>
     </style>
 </resources>
