@@ -1,13 +1,17 @@
 package com.example.droidcraft
 
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -18,63 +22,83 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.UUID
 
+// --- Data Layer ---
+
+@Entity(tableName = "habits")
 data class Habit(
-    val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
     val isCompleted: Boolean = false
 )
 
-data class HabitUiState(
-    val habits: List<Habit> = emptyList(),
-    val errorMessage: String? = null
-)
+@Dao
+interface HabitDao {
+    @Query("SELECT * FROM habits")
+    fun getAllHabits(): Flow<List<Habit>>
 
-class HabitViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(HabitUiState())
-    val uiState = _uiState.asStateFlow()
+    @Insert
+    suspend fun insert(habit: Habit)
+
+    @Update
+    suspend fun update(habit: Habit)
+
+    @Delete
+    suspend fun delete(habit: Habit)
+}
+
+@Database(entities = [Habit::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun habitDao(): HabitDao
+}
+
+// --- ViewModel ---
+
+class HabitViewModel(private val dao: HabitDao) : ViewModel() {
+    val habits = dao.getAllHabits().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addHabit(name: String) {
-        val trimmed = name.trim()
-        if (trimmed.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "Habit name cannot be empty") }
-            return
-        }
-        val newHabit = Habit(name = trimmed)
-        _uiState.update { it.copy(habits = it.habits + newHabit, errorMessage = null) }
+        if (name.isBlank()) return
+        viewModelScope.launch { dao.insert(Habit(name = name.trim())) }
     }
 
-    fun toggleHabit(id: String) {
-        _uiState.update { state ->
-            state.copy(habits = state.habits.map {
-                if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
-            })
-        }
+    fun toggleHabit(habit: Habit) {
+        viewModelScope.launch { dao.update(habit.copy(isCompleted = !habit.isCompleted)) }
     }
 
-    fun deleteHabit(id: String) {
-        _uiState.update { state ->
-            state.copy(habits = state.habits.filterNot { it.id == id })
-        }
+    fun deleteHabit(habit: Habit) {
+        viewModelScope.launch { dao.delete(habit) }
     }
 }
+
+class HabitViewModelFactory(private val dao: HabitDao) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = HabitViewModel(dao) as T
+}
+
+// --- UI Layer ---
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "habits.db").build()
+        val factory = HabitViewModelFactory(db.habitDao())
+        
         setContent {
-            MaterialTheme {
+            MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    HabitTrackerScreen()
+                    HabitTrackerScreen(viewModel(factory = factory))
                 }
             }
         }
@@ -83,42 +107,37 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var habitText by remember { mutableStateOf("") }
+fun HabitTrackerScreen(viewModel: HabitViewModel) {
+    val habits by viewModel.habits.collectAsState()
+    var text by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Daily Rituals", fontWeight = FontWeight.Bold) }
-            )
-        }
+        topBar = { TopAppBar(title = { Text("Daily Rituals", fontWeight = FontWeight.Black) }) }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
             OutlinedTextField(
-                value = habitText,
-                onValueChange = { habitText = it },
-                label = { Text("New Habit") },
-                isError = uiState.errorMessage != null,
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Enter a new habit") },
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    viewModel.addHabit(text)
+                    text = ""
+                    keyboardController?.hide()
+                }),
                 trailingIcon = {
-                    IconButton(onClick = {
-                        viewModel.addHabit(habitText)
-                        habitText = ""
-                    }) { Icon(Icons.Default.Add, "Add") }
-                },
-                shape = RoundedCornerShape(12.dp)
+                    IconButton(onClick = { viewModel.addHabit(text); text = ""; keyboardController?.hide() }) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                    }
+                }
             )
-            
-            uiState.errorMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(items = uiState.habits, key = { it.id }) { habit ->
-                    HabitItem(habit, viewModel)
+            Spacer(modifier = Modifier.height(24.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(habits, key = { it.id }) { habit ->
+                    HabitItem(habit, { viewModel.toggleHabit(habit) }, { viewModel.deleteHabit(habit) })
                 }
             }
         }
@@ -127,33 +146,24 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitItem(habit: Habit, viewModel: HabitViewModel) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) {
-                viewModel.deleteHabit(habit.id)
-                true
-            } else false
-        }
-    )
+fun HabitItem(habit: Habit, onToggle: () -> Unit, onDelete: () -> Unit) {
+    val dismissState = rememberSwipeToDismissBoxState(confirmValueChange = {
+        if (it == SwipeToDismissBoxValue.EndToStart) { onDelete(); true } else false
+    })
 
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val color = Color.Red.copy(alpha = 0.8f)
-            Box(Modifier.fillMaxSize().background(color, RoundedCornerShape(12.dp)).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterEnd) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+            val color by animateColorAsState(if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent)
+            Box(Modifier.fillMaxSize().background(color, RoundedCornerShape(12.dp)).padding(end = 24.dp), contentAlignment = Alignment.CenterEnd) {
+                Icon(Icons.Default.Delete, "Delete", tint = Color.White)
             }
         },
         content = {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
+            Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(habit.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    IconButton(onClick = { viewModel.toggleHabit(habit.id) }) {
+                    Text(habit.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = onToggle) {
                         Icon(
                             if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.CheckCircle,
                             "Toggle",
