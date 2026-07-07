@@ -34,8 +34,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-// --- Data Layer ---
-
 @Entity(tableName = "habits")
 data class Habit(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
@@ -63,8 +61,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
 }
 
-// --- ViewModel ---
-
 class HabitViewModel(private val dao: HabitDao) : ViewModel() {
     val habits = dao.getAllHabits().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -87,8 +83,6 @@ class HabitViewModelFactory(private val dao: HabitDao) : ViewModelProvider.Facto
         return HabitViewModel(dao) as T
     }
 }
-
-// --- UI Layer ---
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
