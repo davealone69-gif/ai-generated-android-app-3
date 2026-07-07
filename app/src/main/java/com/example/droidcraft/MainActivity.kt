@@ -49,7 +49,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) {
+            // Apply the theme defined in themes.xml by using MaterialTheme
+            MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -63,14 +64,11 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     var habitName by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Daily Habits", style = MaterialTheme.typography.headlineSmall) },
+                title = { Text("Daily Habits") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             )
         }
@@ -85,25 +83,17 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {
-                        if (habitName.isBlank()) {
-                            // Logic for validation handled in button click for consistency
-                        } else {
-                            viewModel.addHabit(habitName)
-                            habitName = ""
-                            focusManager.clearFocus()
-                        }
+                        viewModel.addHabit(habitName)
+                        habitName = ""
+                        focusManager.clearFocus()
                     })
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                FilledIconButton(
+                IconButton(
                     onClick = {
-                        if (habitName.isBlank()) {
-                            // Optional: Show snackbar if needed
-                        } else {
-                            viewModel.addHabit(habitName)
-                            habitName = ""
-                            focusManager.clearFocus()
-                        }
+                        viewModel.addHabit(habitName)
+                        habitName = ""
+                        focusManager.clearFocus()
                     }
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Habit")
@@ -124,19 +114,14 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
 @Composable
 fun HabitItem(habit: Habit, onToggle: () -> Unit) {
     Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = habit.name,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
+            Text(text = habit.name, style = MaterialTheme.typography.bodyLarge)
             IconButton(onClick = onToggle) {
                 Icon(
                     imageVector = if (habit.isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
