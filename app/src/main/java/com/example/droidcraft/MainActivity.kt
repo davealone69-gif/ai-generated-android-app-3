@@ -20,13 +20,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
 
 data class Habit(val id: String = UUID.randomUUID().toString(), val name: String, val isCompleted: Boolean = false)
 
-class HabitViewModel : ViewModel() {
+class HabitViewModel : androidx.lifecycle.ViewModel() {
     var habits = mutableStateListOf<Habit>()
         private set
 
@@ -49,7 +48,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Apply the theme defined in themes.xml
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
