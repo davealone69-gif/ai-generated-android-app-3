@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Use the base Theme.Material3.DayNight.NoActionBar provided by the library -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme colors here -->
         <item name="colorPrimary">@android:color/holo_blue_dark</item>
         <item name="colorSecondary">@android:color/holo_green_dark</item>
     </style>
