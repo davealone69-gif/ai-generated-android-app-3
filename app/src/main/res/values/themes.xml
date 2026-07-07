@@ -3,7 +3,7 @@
     <!-- Base application theme using Material3 -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your theme here -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorSecondary">@color/teal_200</item>
+        <item name="android:colorPrimary">@color/purple_500</item>
+        <item name="android:colorSecondary">@color/teal_200</item>
     </style>
 </resources>
