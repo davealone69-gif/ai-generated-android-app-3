@@ -2,10 +2,10 @@
 <resources>
     <!-- Base Material3 theme -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize colors using Material3 nomenclature -->
+        <!-- Customize colors using standard Material3 attributes -->
         <item name="colorPrimary">@color/purple_500</item>
         <item name="colorSecondary">@color/teal_200</item>
         <item name="colorSurface">@color/white</item>
-        <item name="android:windowBackground">@color/white</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
 </resources>
