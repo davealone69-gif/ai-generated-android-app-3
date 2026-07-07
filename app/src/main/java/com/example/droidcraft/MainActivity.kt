@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Using the M3 MaterialTheme which reads from the Android theme resources automatically
+            // Apply the theme defined in themes.xml
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
