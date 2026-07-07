@@ -22,10 +22,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // MaterialTheme handles the styling defined in AndroidManifest/themes.xml
+            // Apply the theme defined in themes.xml
             MaterialTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(), 
+                    modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     HabitTrackerScreen()
