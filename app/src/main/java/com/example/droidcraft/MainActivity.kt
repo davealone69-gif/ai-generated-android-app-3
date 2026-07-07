@@ -94,7 +94,7 @@ fun HabitTrackerScreen() {
                             Icon(
                                 if (habit.isDone) Icons.Default.CheckCircle else Icons.Outlined.Circle,
                                 contentDescription = "Toggle Habit",
-                                tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
