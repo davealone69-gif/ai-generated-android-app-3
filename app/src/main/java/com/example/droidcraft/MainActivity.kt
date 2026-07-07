@@ -3,8 +3,6 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,14 +72,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = Color(0xFF6200EE),
-                    secondary = Color(0xFF03DAC6),
-                    background = Color(0xFFF8F9FA),
-                    surface = Color.White
-                )
-            ) {
+            MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -100,7 +90,7 @@ fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Rituals", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+                title = { Text("Daily Rituals", fontWeight = FontWeight.Bold) }
             )
         }
     ) { padding ->
@@ -152,7 +142,7 @@ fun HabitItem(habit: Habit, viewModel: HabitViewModel) {
         backgroundContent = {
             val color = Color.Red.copy(alpha = 0.8f)
             Box(Modifier.fillMaxSize().background(color, RoundedCornerShape(12.dp)).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterEnd) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
             }
         },
         content = {
