@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -22,7 +23,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
@@ -91,7 +94,9 @@ fun HabitTrackerScreen() {
                             )
                             IconButton(onClick = {
                                 val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                                if (index != -1) {
+                                    habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                                }
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
