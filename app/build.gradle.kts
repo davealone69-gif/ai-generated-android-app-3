@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.example.droidcraft"
     compileSdk = 34
+
     defaultConfig {
         applicationId = "com.example.droidcraft"
         minSdk = 26
@@ -13,6 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -30,7 +32,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.9"
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 }
 
@@ -43,5 +45,4 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 }
