@@ -17,14 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
@@ -34,7 +36,7 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(0) }
+    var nextId by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -75,7 +77,7 @@ fun HabitTrackerScreen() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(habits) { habit ->
+            items(habits, key = { it.id }) { habit ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(2.dp)
@@ -92,8 +94,10 @@ fun HabitTrackerScreen() {
                             style = MaterialTheme.typography.bodyLarge
                         )
                         IconButton(onClick = {
-                            val index = habits.indexOf(habit)
-                            habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                            val index = habits.indexOfFirst { it.id == habit.id }
+                            if (index != -1) {
+                                habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                            }
                         }) {
                             Icon(
                                 imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
