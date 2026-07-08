@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -21,17 +20,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            HabitTrackerApp()
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
+            }
         }
     }
 }
 
-data class Habit(val name: String, var isCompleted: Boolean = false)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
 @Composable
-fun HabitTrackerApp() {
+fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
+    var idCounter by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -59,7 +63,7 @@ fun HabitTrackerApp() {
             IconButton(
                 onClick = {
                     if (habitName.isNotBlank()) {
-                        habits.add(Habit(habitName))
+                        habits.add(Habit(idCounter++, habitName, false))
                         habitName = ""
                     }
                 }
@@ -70,15 +74,15 @@ fun HabitTrackerApp() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(habits) { habit ->
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(habits, key = { it.id }) { habit ->
                 HabitItem(
                     habit = habit,
                     onToggle = {
                         val index = habits.indexOf(habit)
-                        habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                        if (index != -1) {
+                            habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+                        }
                     }
                 )
             }
@@ -90,30 +94,26 @@ fun HabitTrackerApp() {
 fun HabitItem(habit: Habit, onToggle: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (habit.isCompleted) MaterialTheme.colorScheme.primaryContainer 
-            else MaterialTheme.colorScheme.surfaceVariant
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = habit.name,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = if (habit.isCompleted) FontWeight.Bold else FontWeight.Normal
             )
             IconButton(onClick = onToggle) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Complete",
+                    contentDescription = "Toggle completion",
                     tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary 
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                           else MaterialTheme.colorScheme.outline
                 )
             }
         }
