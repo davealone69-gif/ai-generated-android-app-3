@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PomodoroScreen()
+                    PomodoroTimerApp()
                 }
             }
         }
@@ -28,28 +29,28 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PomodoroScreen() {
-    val totalTime = 25 * 60L
-    var timeLeft by remember { mutableLongStateOf(totalTime) }
+fun PomodoroTimerApp() {
+    val totalTimeSeconds = 25 * 60
+    var timeLeft by remember { mutableStateOf(totalTimeSeconds) }
     var isRunning by remember { mutableStateOf(false) }
-    var completedSessions by remember { mutableIntStateOf(0) }
-
-    val progress = timeLeft.toFloat() / totalTime
-    val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
+    var completedSessions by remember { mutableStateOf(0) }
+    
+    val progress by animateFloatAsState(
+        targetValue = timeLeft.toFloat() / totalTimeSeconds,
+        animationSpec = androidx.compose.animation.core.ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "timerProgress"
+    )
 
     LaunchedEffect(isRunning, timeLeft) {
         if (isRunning && timeLeft > 0) {
             delay(1000L)
             timeLeft--
-        } else if (timeLeft == 0L && isRunning) {
+        } else if (timeLeft == 0 && isRunning) {
             isRunning = false
             completedSessions++
-            timeLeft = totalTime
+            timeLeft = totalTimeSeconds
         }
     }
-
-    val minutes = (timeLeft / 60).toString().padStart(2, '0')
-    val seconds = (timeLeft % 60).toString().padStart(2, '0')
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -66,14 +67,14 @@ fun PomodoroScreen() {
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
             CircularProgressIndicator(
-                progress = { animatedProgress },
+                progress = progress,
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 12.dp,
                 strokeCap = StrokeCap.Round
             )
             Text(
-                text = "$minutes:$seconds",
-                style = MaterialTheme.typography.displaySmall
+                text = String.format(Locale.getDefault(), "%02d:%02d", timeLeft / 60, timeLeft % 60),
+                style = MaterialTheme.typography.headlineLarge
             )
         }
 
@@ -85,7 +86,7 @@ fun PomodoroScreen() {
             }
             OutlinedButton(onClick = { 
                 isRunning = false
-                timeLeft = totalTime 
+                timeLeft = totalTimeSeconds 
             }) {
                 Text("Reset")
             }
@@ -95,9 +96,13 @@ fun PomodoroScreen() {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Statistics", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Statistics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Completed Sessions: $completedSessions")
+                Text(text = "Sessions completed today: $completedSessions")
             }
         }
     }
