@@ -8,16 +8,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,18 +31,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
-    var habits by remember { mutableStateOf(listOf<Habit>()) }
+    val habits = remember { mutableStateListOf<Habit>() }
     var idCounter by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(16.dp)
     ) {
         Text(
-            text = "My Habit Tracker",
+            text = "My Habits",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -62,7 +59,7 @@ fun HabitTrackerScreen() {
             IconButton(
                 onClick = {
                     if (habitName.isNotBlank()) {
-                        habits = habits + Habit(idCounter++, habitName, false)
+                        habits.add(Habit(idCounter++, habitName))
                         habitName = ""
                     }
                 }
@@ -78,38 +75,27 @@ fun HabitTrackerScreen() {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                        .padding(vertical = 4.dp),
                 ) {
                     Row(
                         modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = habit.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (habit.isCompleted) FontWeight.Bold else FontWeight.Normal
-                        )
-                        Row {
-                            IconButton(onClick = {
-                                habits = habits.map {
-                                    if (it.id == habit.id) it.copy(isCompleted = !it.isCompleted) else it
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = habit.isCompleted,
+                                onCheckedChange = {
+                                    val index = habits.indexOf(habit)
+                                    habits[index] = habit.copy(isCompleted = it)
                                 }
-                            }) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "Toggle Complete",
-                                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else Color.Gray
-                                )
-                            }
-                            IconButton(onClick = {
-                                habits = habits.filter { it.id != habit.id }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            }
+                            )
+                            Text(text = habit.name)
+                        }
+                        IconButton(onClick = { habits.remove(habit) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Habit")
                         }
                     }
                 }
