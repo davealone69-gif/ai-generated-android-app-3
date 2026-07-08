@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -21,19 +22,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, val isCompleted: Boolean)
 
 @Composable
 fun HabitTrackerScreen() {
-    var habitName by remember { mutableStateOf("") }
+    var habitName by rememberSaveable { mutableStateOf("") }
     val habits = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(0) }
+    var idCounter by rememberSaveable { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -61,7 +64,7 @@ fun HabitTrackerScreen() {
             IconButton(
                 onClick = {
                     if (habitName.isNotBlank()) {
-                        habits.add(Habit(nextId++, habitName, false))
+                        habits.add(Habit(idCounter++, habitName, false))
                         habitName = ""
                     }
                 }
@@ -73,38 +76,46 @@ fun HabitTrackerScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(habits) { habit ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = habit.name,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        IconToggleButton(
-                            checked = habit.isCompleted,
-                            onCheckedChange = { isChecked ->
-                                val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isCompleted = isChecked)
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Toggle completion",
-                                tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary 
-                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            )
+            items(habits, key = { it.id }) { habit ->
+                HabitItem(
+                    habit = habit,
+                    onToggle = {
+                        val index = habits.indexOfFirst { it.id == habit.id }
+                        if (index != -1) {
+                            habits[index] = habits[index].copy(isCompleted = !habits[index].isCompleted)
                         }
                     }
-                }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HabitItem(habit: Habit, onToggle: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = habit.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (habit.isCompleted) FontWeight.Bold else FontWeight.Normal
+            )
+            IconButton(onClick = onToggle) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Toggle completion",
+                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary 
+                           else MaterialTheme.colorScheme.outline
+                )
             }
         }
     }
