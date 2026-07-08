@@ -10,9 +10,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PomodoroScreen()
+                    PomodoroTimerApp()
                 }
             }
         }
@@ -28,30 +29,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PomodoroScreen() {
-    val totalTime = 25 * 60L
-    var timeLeft by remember { mutableLongStateOf(totalTime) }
+fun PomodoroTimerApp() {
+    val totalTimeMs = 25 * 60 * 1000L
+    var timeLeft by remember { mutableLongStateOf(totalTimeMs) }
     var isRunning by remember { mutableStateOf(false) }
     var sessionsCompleted by remember { mutableIntStateOf(0) }
-
-    val progress by animateFloatAsState(
-        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
-        label = "progress"
-    )
 
     LaunchedEffect(isRunning, timeLeft) {
         if (isRunning && timeLeft > 0) {
             delay(1000L)
-            timeLeft--
-        } else if (timeLeft == 0L) {
+            timeLeft -= 1000L
+        } else if (timeLeft <= 0L && isRunning) {
             isRunning = false
+            timeLeft = totalTimeMs
             sessionsCompleted++
-            timeLeft = totalTime
         }
     }
 
-    val minutes = timeLeft / 60
-    val seconds = timeLeft % 60
+    val progress = timeLeft.toFloat() / totalTimeMs.toFloat()
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -64,22 +60,22 @@ fun PomodoroScreen() {
             fontWeight = FontWeight.Bold
         )
         
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
             CircularProgressIndicator(
-                progress = { progress },
+                progress = { animatedProgress },
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 12.dp,
                 strokeCap = StrokeCap.Round
             )
             Text(
-                text = "%02d:%02d".format(minutes, seconds),
+                text = String.format(Locale.getDefault(), "%02d:%02d", (timeLeft / 60000), (timeLeft / 1000) % 60),
                 style = MaterialTheme.typography.displaySmall
             )
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Button(onClick = { isRunning = !isRunning }) {
@@ -87,24 +83,23 @@ fun PomodoroScreen() {
             }
             OutlinedButton(onClick = { 
                 isRunning = false
-                timeLeft = totalTime 
+                timeLeft = totalTimeMs 
             }) {
                 Text("Reset")
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = "Statistics",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "Sessions Completed: $sessionsCompleted",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Sessions completed today: $sessionsCompleted")
             }
         }
     }
