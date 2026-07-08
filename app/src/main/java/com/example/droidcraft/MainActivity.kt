@@ -3,73 +3,24 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
-
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
-            }
-        }
-    }
-}
-
-@Composable
-fun HabitTrackerScreen() {
-    var habitName by remember { mutableStateOf("") }
-    val habitList = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(0) }
-
-    Scaffold(
-        topBar = {
-            SmallTopAppBar(title = { Text("Habit Tracker") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                if (habitName.isNotBlank()) {
-                    habitList.add(Habit(nextId++, habitName, false))
-                    habitName = ""
-                }
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            OutlinedTextField(
-                value = habitName,
-                onValueChange = { habitName = it },
-                label = { Text("Enter a new habit") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(habitList) { habit ->
-                    HabitItem(habit = habit) {
-                        val index = habitList.indexOf(habit)
-                        habitList[index] = habit.copy(isCompleted = !habit.isCompleted)
-                    }
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    PomodoroScreen()
                 }
             }
         }
@@ -77,28 +28,82 @@ fun HabitTrackerScreen() {
 }
 
 @Composable
-fun HabitItem(habit: Habit, onToggle: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+fun PomodoroScreen() {
+    val totalTime = 25 * 60L
+    var timeLeft by remember { mutableLongStateOf(totalTime) }
+    var isRunning by remember { mutableStateOf(false) }
+    var sessionsCompleted by remember { mutableIntStateOf(0) }
+
+    val progress by animateFloatAsState(
+        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
+        label = "progress"
+    )
+
+    LaunchedEffect(isRunning, timeLeft) {
+        if (isRunning && timeLeft > 0) {
+            delay(1000L)
+            timeLeft--
+        } else if (timeLeft == 0L) {
+            isRunning = false
+            sessionsCompleted++
+            timeLeft = totalTime
+        }
+    }
+
+    val minutes = timeLeft / 60
+    val seconds = timeLeft % 60
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = habit.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+        Text(
+            text = "Pomodoro Timer",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 12.dp,
+                strokeCap = StrokeCap.Round
             )
-            IconButton(onClick = onToggle) {
-                Icon(
-                    imageVector = if (habit.isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                    contentDescription = "Toggle Habit",
-                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                text = "%02d:%02d".format(minutes, seconds),
+                style = MaterialTheme.typography.displaySmall
+            )
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(onClick = { isRunning = !isRunning }) {
+                Text(if (isRunning) "Pause" else "Start")
+            }
+            OutlinedButton(onClick = { 
+                isRunning = false
+                timeLeft = totalTime 
+            }) {
+                Text("Reset")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Statistics",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Sessions Completed: $sessionsCompleted",
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
