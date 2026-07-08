@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar.Bridge">
+        <!-- Using a bridge or a standard platform parent to avoid recursion -->
         <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 </resources>
