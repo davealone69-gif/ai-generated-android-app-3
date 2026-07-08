@@ -3,6 +3,8 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,39 +12,41 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
 
-data class Habit(val id: String, val name: String, val isCompleted: Boolean)
+data class Habit(val id: String = UUID.randomUUID().toString(), val name: String, val isCompleted: Boolean = false)
 
 class HabitViewModel : ViewModel() {
-    var habitList by mutableStateOf(listOf<Habit>())
-        private set
+    val habits = mutableStateListOf<Habit>()
 
     fun addHabit(name: String) {
-        if (name.isBlank()) return
-        val newHabit = Habit(UUID.randomUUID().toString(), name, false)
-        habitList = habitList + newHabit
-    }
-
-    fun toggleHabit(id: String) {
-        habitList = habitList.map {
-            if (it.id == id) it.copy(isCompleted = !it.isCompleted) else it
+        if (name.isNotBlank()) {
+            habits.add(Habit(name = name))
         }
     }
 
-    fun deleteHabit(id: String) {
-        habitList = habitList.filter { it.id != id }
+    fun toggleHabit(id: String) {
+        val index = habits.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val habit = habits[index]
+            habits[index] = habit.copy(isCompleted = !habit.isCompleted)
+        }
+    }
+
+    fun removeHabit(id: String) {
+        habits.removeAll { it.id == id }
     }
 }
 
@@ -50,7 +54,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) {
+            MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     HabitTrackerScreen()
                 }
@@ -59,90 +63,82 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen(viewModel: HabitViewModel = viewModel()) {
-    var habitName by remember { mutableStateOf("") }
+    var habitText by remember { mutableStateOf("") }
 
-    val onAddHabit = {
-        if (habitName.isNotBlank()) {
-            viewModel.addHabit(habitName)
-            habitName = ""
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text(
-            text = "Daily Habits",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            text = "My Daily Habits",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
+        
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
+        OutlinedTextField(
+            value = habitText,
+            onValueChange = { habitText = it },
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = habitName,
-                onValueChange = { habitName = it },
-                label = { Text("New Habit") },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onAddHabit() })
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            FilledIconButton(onClick = onAddHabit) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
-            }
-        }
+            label = { Text("What do you want to accomplish?") },
+            singleLine = true,
+            trailingIcon = {
+                IconButton(onClick = { 
+                    viewModel.addHabit(habitText)
+                    habitText = "" 
+                }) {
+                    Icon(Icons.Default.Add, "Add")
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                viewModel.addHabit(habitText)
+                habitText = ""
+            })
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(viewModel.habitList, key = { it.id }) { habit ->
-                HabitItem(
-                    habit = habit,
-                    onCheckedChange = { viewModel.toggleHabit(habit.id) },
-                    onDelete = { viewModel.deleteHabit(habit.id) }
+            items(items = viewModel.habits, key = { it.id }) { habit ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = {
+                        if (it == SwipeToDismissBoxValue.EndToStart) {
+                            viewModel.removeHabit(habit.id)
+                            true
+                        } else false
+                    }
                 )
-            }
-        }
-    }
-}
 
-@Composable
-fun HabitItem(habit: Habit, onCheckedChange: (Boolean) -> Unit, onDelete: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = habit.isCompleted,
-                onCheckedChange = onCheckedChange
-            )
-            Text(
-                text = habit.name,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else null
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) Color.Red else Color.Transparent
+                        Box(Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterEnd) {
+                            Icon(Icons.Default.Delete, "Delete", tint = Color.White)
+                        }
+                    },
+                    content = {
+                        Card(
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(habit.name, style = MaterialTheme.typography.bodyLarge)
+                                val tint by animateColorAsState(if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, label = "color")
+                                IconButton(onClick = { viewModel.toggleHabit(habit.id) }) {
+                                    Icon(Icons.Default.Check, "Toggle", tint = tint)
+                                }
+                            }
+                        }
+                    }
                 )
-            )
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
