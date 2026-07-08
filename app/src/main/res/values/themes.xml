@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Corrected parent theme reference to a standard Material3 theme -->
     <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#6200EE</item>
-        <item name="colorSecondary">#03DAC6</item>
+        <item name="colorPrimary">@android:color/holo_purple</item>
+        <item name="colorSecondary">@android:color/holo_green_light</item>
     </style>
 </resources>
