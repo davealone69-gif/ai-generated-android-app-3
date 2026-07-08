@@ -5,15 +5,18 @@ import android.os.CountDownTimer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import java.util.Locale
+import androidx.compose.ui.unit.sp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,78 +36,82 @@ fun PomodoroApp() {
     val totalTime = 25 * 60 * 1000L
     var timeLeft by remember { mutableLongStateOf(totalTime) }
     var isRunning by remember { mutableStateOf(false) }
-    var pomodorosCompleted by remember { mutableIntStateOf(0) }
+    var sessionsCompleted by remember { mutableIntStateOf(0) }
+    var timer by remember { mutableStateOf<CountDownTimer?>(null) }
 
-    val progress by animateFloatAsState(
-        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
-        label = "progress"
-    )
+    val progress = timeLeft.toFloat() / totalTime.toFloat()
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
 
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
-            val timer = object : CountDownTimer(timeLeft, 1000) {
-                override fun onTick(millisUntilFinished: Long) {
-                    timeLeft = millisUntilFinished
-                }
-                override fun onFinish() {
-                    isRunning = false
-                    timeLeft = totalTime
-                    pomodorosCompleted++
-                }
-            }
-            timer.start()
-            // Cleanup when the effect is cancelled or isRunning becomes false
-            onDispose { timer.cancel() }
-        }
+    fun stopTimer() {
+        timer?.cancel()
+        isRunning = false
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Pomodoro Timer",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
-            CircularProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 12.dp,
-                strokeCap = StrokeCap.Round
-            )
-            Text(
-                text = String.format(Locale.getDefault(), "%02d:%02d", timeLeft / 60000, (timeLeft % 60000) / 1000),
-                style = MaterialTheme.typography.headlineLarge
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(onClick = { isRunning = !isRunning }) {
-                Text(if (isRunning) "Pause" else "Start")
+    fun startTimer() {
+        timer = object : CountDownTimer(timeLeft, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                timeLeft = millisUntilFinished
             }
-            OutlinedButton(onClick = { 
+            override fun onFinish() {
                 isRunning = false
-                timeLeft = totalTime 
-            }) {
-                Text("Reset")
+                timeLeft = totalTime
+                sessionsCompleted++
             }
-        }
+        }.start()
+        isRunning = true
+    }
 
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Statistics", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Pomodoros completed today: $pomodorosCompleted")
+    Scaffold { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = "Pomodoro Timer", style = MaterialTheme.typography.headlineMedium)
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = Color.LightGray,
+                        style = Stroke(width = 20f)
+                    )
+                    drawArc(
+                        color = Color(0xFF6200EE),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress,
+                        useCenter = false,
+                        style = Stroke(width = 20f, cap = StrokeCap.Round)
+                    )
+                }
+                Text(
+                    text = "${(timeLeft / 60000).toString().padStart(2, '0')}:${((timeLeft % 60000) / 1000).toString().padStart(2, '0')}",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Button(onClick = { if (isRunning) stopTimer() else startTimer() }) {
+                    Text(if (isRunning) "Pause" else "Start")
+                }
+                Button(onClick = { stopTimer(); timeLeft = totalTime }) {
+                    Text("Reset")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Card(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "Statistics", fontWeight = FontWeight.Bold)
+                    Text(text = "Sessions completed today: $sessionsCompleted")
+                }
             }
         }
     }
