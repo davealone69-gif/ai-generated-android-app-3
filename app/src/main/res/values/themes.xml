@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base application theme. -->
     <style name="Theme.App.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
         <item name="colorPrimary">@android:color/holo_purple</item>
         <item name="colorSecondary">@android:color/holo_teal</item>
-        <item name="android:windowBackground">?attr/colorSurface</item>
+        <!-- Surface color -->
+        <item name="colorSurface">@android:color/white</item>
+        <item name="android:windowBackground">@android:color/white</item>
     </style>
 </resources>
