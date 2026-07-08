@@ -8,13 +8,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+data class Habit(val id: Int, val name: String, var completed: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,72 +29,76 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
-
 @Composable
 fun HabitTrackerScreen() {
-    var habitName by remember { mutableStateOf("") }
-    val habits = remember { mutableStateListOf<Habit>() }
+    var habitText by remember { mutableStateOf("") }
+    val habitList = remember { mutableStateListOf<Habit>() }
     var idCounter by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(24.dp)
     ) {
         Text(
-            text = "My Habits",
+            text = "My Habit Tracker",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            fontWeight = FontWeight.Bold
         )
+        
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             OutlinedTextField(
-                value = habitName,
-                onValueChange = { habitName = it },
-                label = { Text("New Habit") },
-                modifier = Modifier.weight(1f)
+                value = habitText,
+                onValueChange = { habitText = it },
+                modifier = Modifier.weight(1f),
+                label = { Text("New habit") },
+                singleLine = true
             )
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(onClick = {
-                if (habitName.isNotBlank()) {
-                    habits.add(Habit(idCounter++, habitName))
-                    habitName = ""
+                if (habitText.isNotBlank()) {
+                    habitList.add(Habit(idCounter++, habitText, false))
+                    habitText = ""
                 }
             }) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
+                Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(habits) { habit ->
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(habitList) { habit ->
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .padding(16.dp)
                             .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = habit.name,
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        Checkbox(
-                            checked = habit.isCompleted,
-                            onCheckedChange = { checked ->
-                                val index = habits.indexOf(habit)
-                                habits[index] = habit.copy(isCompleted = checked)
-                            }
-                        )
+                        IconButton(onClick = {
+                            val index = habitList.indexOf(habit)
+                            habitList[index] = habit.copy(completed = !habit.completed)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Toggle completion",
+                                tint = if (habit.completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
                     }
                 }
             }
