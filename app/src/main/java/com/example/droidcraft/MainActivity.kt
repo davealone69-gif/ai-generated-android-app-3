@@ -3,100 +3,98 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
+
+data class Habit(val id: Int, val name: String, var isDone: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PomodoroScreen()
-                }
-            }
+            HabitTrackerApp()
         }
     }
 }
 
 @Composable
-fun PomodoroScreen() {
-    val totalTime = 25 * 60L
-    var timeLeft by remember { mutableStateOf(totalTime) }
-    var isRunning by remember { mutableStateOf(false) }
-    var completedSessions by remember { mutableStateOf(0) }
-    
-    val progress by animateFloatAsState(
-        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
-        label = "progress"
-    )
-
-    LaunchedEffect(isRunning, timeLeft) {
-        if (isRunning && timeLeft > 0) {
-            delay(1000L)
-            timeLeft--
-        } else if (timeLeft == 0L && isRunning) {
-            isRunning = false
-            completedSessions++
-            timeLeft = totalTime
-        }
-    }
+fun HabitTrackerApp() {
+    var habits by remember { mutableStateOf(listOf(Habit(1, "Morning Meditation", false), Habit(2, "Drink Water", false))) }
+    var newHabitName by remember { mutableStateOf("") }
+    var nextId by remember { mutableStateOf(3) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
     ) {
         Text(
-            text = "Pomodoro Timer",
+            text = "Habit Tracker",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
-        
-        Spacer(modifier = Modifier.height(32.dp))
 
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
-            CircularProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 12.dp,
-                strokeCap = StrokeCap.Round
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = newHabitName,
+                onValueChange = { newHabitName = it },
+                label = { Text("New Habit") },
+                modifier = Modifier.weight(1f)
             )
-            Text(
-                text = "${(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}",
-                style = MaterialTheme.typography.headlineLarge
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(onClick = { isRunning = !isRunning }) {
-                Text(if (isRunning) "Pause" else "Start")
-            }
-            OutlinedButton(onClick = { 
-                isRunning = false
-                timeLeft = totalTime 
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = {
+                if (newHabitName.isNotBlank()) {
+                    habits = habits + Habit(nextId++, newHabitName, false)
+                    newHabitName = ""
+                }
             }) {
-                Text("Reset")
+                Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Statistics", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Completed Sessions: $completedSessions")
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(habits) { habit ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = habit.name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        IconButton(onClick = {
+                            habits = habits.map { if (it.id == habit.id) it.copy(isDone = !it.isDone) else it }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Toggle",
+                                tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        IconButton(onClick = { habits = habits.filter { it.id != habit.id } }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
             }
         }
     }
