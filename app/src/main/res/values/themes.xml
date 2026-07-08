@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme using Material3 -->
-    <style name="Theme.App.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize colors using Material3 attributes -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorSecondary">@color/teal_200</item>
+    <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#6200EE</item>
+        <item name="colorSecondary">#03DAC6</item>
     </style>
 </resources>
