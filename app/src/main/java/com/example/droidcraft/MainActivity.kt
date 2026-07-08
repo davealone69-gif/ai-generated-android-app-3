@@ -32,10 +32,12 @@ fun PomodoroScreen() {
     val totalTime = 25 * 60L
     var timeLeft by remember { mutableStateOf(totalTime) }
     var isRunning by remember { mutableStateOf(false) }
-    var completedSessions by remember { mutableStateOf(0) }
-
-    val progress = timeLeft.toFloat() / totalTime
-    val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
+    var sessionsCompleted by remember { mutableStateOf(0) }
+    
+    val progress by animateFloatAsState(
+        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
+        label = "progress"
+    )
 
     LaunchedEffect(isRunning, timeLeft) {
         if (isRunning && timeLeft > 0) {
@@ -43,7 +45,7 @@ fun PomodoroScreen() {
             timeLeft--
         } else if (timeLeft == 0L && isRunning) {
             isRunning = false
-            completedSessions++
+            sessionsCompleted++
             timeLeft = totalTime
         }
     }
@@ -56,28 +58,24 @@ fun PomodoroScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Pomodoro Timer",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Text("Pomodoro Timer", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
             CircularProgressIndicator(
-                progress = { animatedProgress },
+                progress = { progress },
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 12.dp,
                 strokeCap = StrokeCap.Round
             )
             Text(
                 text = "$minutes:$seconds",
-                style = MaterialTheme.typography.displaySmall
+                style = MaterialTheme.typography.displayMedium
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Button(onClick = { isRunning = !isRunning }) {
@@ -91,13 +89,13 @@ fun PomodoroScreen() {
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Statistics", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Completed Sessions: $completedSessions")
+                Text("Sessions completed today: $sessionsCompleted")
             }
         }
     }
