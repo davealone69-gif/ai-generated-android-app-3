@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +23,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Use MaterialTheme directly as defined by the Material3 library
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(), 
@@ -104,7 +103,7 @@ fun HabitTrackerScreen() {
                             }
                         }) {
                             Icon(
-                                imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                                 contentDescription = "Toggle Habit",
                                 tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                             )
