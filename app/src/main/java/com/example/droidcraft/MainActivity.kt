@@ -17,14 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isDone: Boolean)
+data class Habit(val id: Int, val name: String, val isDone: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
@@ -72,10 +74,8 @@ fun HabitTrackerScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(habits) { habit ->
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+            items(habits, key = { it.id }) { habit ->
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .padding(16.dp)
