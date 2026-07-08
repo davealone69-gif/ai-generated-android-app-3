@@ -3,98 +3,110 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
+
+data class Habit(val id: Int, val name: String, var isDone: Boolean)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    PomodoroScreen()
-                }
-            }
+            HabitTrackerApp()
         }
     }
 }
 
 @Composable
-fun PomodoroScreen() {
-    val totalTime = 25 * 60L
-    var timeLeft by remember { mutableStateOf(totalTime) }
-    var isRunning by remember { mutableStateOf(false) }
-    var completedSessions by remember { mutableStateOf(0) }
+fun HabitTrackerApp() {
+    var habitName by remember { mutableStateOf("") }
+    val habits = remember { mutableStateListOf<Habit>() }
+    var idCounter by remember { mutableStateOf(0) }
 
-    val progress = timeLeft.toFloat() / totalTime
-    val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
-
-    LaunchedEffect(isRunning, timeLeft) {
-        if (isRunning && timeLeft > 0) {
-            delay(1000L)
-            timeLeft--
-        } else if (timeLeft == 0L && isRunning) {
-            isRunning = false
-            completedSessions++
-            timeLeft = totalTime
-        }
-    }
-
-    val minutes = (timeLeft / 60).toString().padStart(2, '0')
-    val seconds = (timeLeft % 60).toString().padStart(2, '0')
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("Pomodoro Timer", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 12.dp,
-                strokeCap = StrokeCap.Round
-            )
-            Text(
-                text = "$minutes:$seconds",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Medium
+    Scaffold(
+        topBar = {
+            SmallTopAppBar(
+                title = { Text("Daily Habit Tracker") },
+                colors = TopAppBarDefaults.smallTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             )
         }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(onClick = { isRunning = !isRunning }) {
-                Text(if (isRunning) "Pause" else "Start")
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = habitName,
+                    onValueChange = { habitName = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("New Habit") },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (habitName.isNotBlank()) {
+                            habits.add(Habit(idCounter++, habitName, false))
+                            habitName = ""
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Habit")
+                }
             }
-            OutlinedButton(onClick = { 
-                isRunning = false
-                timeLeft = totalTime 
-            }) {
-                Text("Reset")
-            }
-        }
 
-        Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Statistics", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Sessions completed today: $completedSessions")
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(habits) { habit ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = habit.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            IconButton(onClick = {
+                                val index = habits.indexOf(habit)
+                                habits[index] = habit.copy(isDone = !habit.isDone)
+                            }) {
+                                Icon(
+                                    imageVector = if (habit.isDone) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                                    contentDescription = "Toggle Habit",
+                                    tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
