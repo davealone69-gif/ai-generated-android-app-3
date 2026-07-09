@@ -76,7 +76,7 @@ fun PomodoroApp() {
                     )
                 }
                 Text(
-                    text = "${(timeLeft / 60000).toString().padStart(2, '0')}:${((timeLeft % 60000) / 1000).toString().padStart(2, '0')}",
+                    text = "%02d:%02d".format(timeLeft / 60000, (timeLeft % 60000) / 1000),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
