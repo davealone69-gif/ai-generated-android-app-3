@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +44,7 @@ fun PomodoroApp() {
 
     LaunchedEffect(isRunning) {
         if (isRunning) {
-            while (timeLeft > 0) {
+            while (isActive && timeLeft > 0) {
                 delay(1000L)
                 timeLeft -= 1000L
             }
