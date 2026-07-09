@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Removed recursive inheritance. Parent points to the official Material3 base theme -->
     <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
-    </style>
-    
-    <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@android:color/holo_purple</item>
+        <!-- Corrected parent to point to the base material component theme -->
     </style>
 </resources>
