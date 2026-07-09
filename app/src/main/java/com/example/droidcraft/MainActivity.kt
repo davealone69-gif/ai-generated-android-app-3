@@ -3,32 +3,56 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.util.UUID
 
 // Data class to represent a single habit
 data class Habit(
-    val id: Int,
+    val id: String = UUID.randomUUID().toString(), // Unique ID for keying in LazyColumn
     var name: String,
-    var description: String,
-    var completedToday: Boolean
+    var completedToday: Boolean = false // Track if the habit is completed for the current day
 )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Apply a simple Material3 theme
+            // Apply MaterialTheme for consistent Material Design styling
             MaterialTheme {
                 HabitTrackerScreen()
             }
@@ -41,25 +65,23 @@ class MainActivity : ComponentActivity() {
 fun HabitTrackerScreen() {
     // State to hold the list of habits
     val habits = remember { mutableStateListOf<Habit>() }
-    // State to control the visibility of the "Add New Habit" dialog
-    var showAddHabitDialog by remember { mutableStateOf(false) }
-    // Simple ID generator for new habits
-    var nextHabitId by remember { mutableStateOf(0) }
 
-    // Pre-populate some habits when the screen first loads
+    // Add some sample habits when the screen is first composed
     LaunchedEffect(Unit) {
         if (habits.isEmpty()) {
-            habits.add(Habit(nextHabitId++, "Drink 8 glasses of water", "Stay hydrated throughout the day.", false))
-            habits.add(Habit(nextHabitId++, "Read 30 minutes", "Expand your knowledge daily.", false))
-            habits.add(Habit(nextHabitId++, "Exercise for 20 minutes", "Boost your energy and health.", false))
-            habits.add(Habit(nextHabitId++, "Meditate for 10 minutes", "Calm your mind and reduce stress.", false))
+            habits.add(Habit(name = "Drink 8 glasses of water"))
+            habits.add(Habit(name = "Read for 30 minutes", completedToday = true))
+            habits.add(Habit(name = "Exercise for 20 minutes"))
         }
     }
 
+    // State to control the visibility of the "Add New Habit" dialog
+    var showAddHabitDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("My Daily Habits", fontWeight = FontWeight.Bold) }
+            TopAppBar(
+                title = { Text("My Daily Habits") }
             )
         },
         floatingActionButton = {
@@ -75,43 +97,40 @@ fun HabitTrackerScreen() {
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
             if (habits.isEmpty()) {
                 Text(
                     text = "No habits yet! Click the '+' button to add one.",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 32.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(habits, key = { it.id }) { habit ->
-                        HabitItem(
-                            habit = habit,
-                            onToggleComplete = { toggledHabit ->
-                                // Find the habit in the list and update its 'completedToday' status
-                                val index = habits.indexOfFirst { it.id == toggledHabit.id }
-                                if (index != -1) {
-                                    habits[index] = habits[index].copy(completedToday = !habits[index].completedToday)
-                                }
+                        HabitItem(habit = habit) {
+                            // Find the habit by id and toggle its completion status
+                            val index = habits.indexOfFirst { it.id == habit.id }
+                            if (index != -1) {
+                                habits[index] = habits[index].copy(completedToday = !habits[index].completedToday)
                             }
-                        )
+                        }
                     }
                 }
             }
         }
 
-        // Show the dialog for adding a new habit
+        // Display the Add Habit dialog if showAddHabitDialog is true
         if (showAddHabitDialog) {
             AddHabitDialog(
-                onAddHabit = { name, description ->
-                    habits.add(Habit(nextHabitId++, name, description, false))
+                onDismiss = { showAddHabitDialog = false },
+                onAddHabit = { newHabitName ->
+                    habits.add(Habit(name = newHabitName))
                     showAddHabitDialog = false
-                },
-                onDismiss = { showAddHabitDialog = false }
+                }
             )
         }
     }
@@ -121,80 +140,56 @@ fun HabitTrackerScreen() {
 fun HabitItem(habit: Habit, onToggleComplete: (Habit) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            // Change card color based on completion status
-            containerColor = if (habit.completedToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-        )
+        onClick = { onToggleComplete(habit) } // Toggle completion on card click
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onToggleComplete(habit) } // Make the whole card clickable
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Text(
+                text = habit.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Normal,
+                // Visually distinguish completed habits
+                color = if (habit.completedToday) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+            )
             Checkbox(
                 checked = habit.completedToday,
-                onCheckedChange = { _ -> onToggleComplete(habit) }, // Checkbox also toggles completion
-                modifier = Modifier.size(24.dp)
+                onCheckedChange = { onToggleComplete(habit) } // Toggle completion on checkbox click
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = habit.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (habit.completedToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (habit.description.isNotBlank()) {
-                    Text(
-                        text = habit.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (habit.completedToday) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-            }
         }
     }
 }
 
 @Composable
-fun AddHabitDialog(onAddHabit: (String, String) -> Unit, onDismiss: () -> Unit) {
-    var habitName by remember { mutableStateOf("") }
-    var habitDescription by remember { mutableStateOf("") }
+fun AddHabitDialog(onDismiss: () -> Unit, onAddHabit: (String) -> Unit) {
+    var newHabitName by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add New Habit") },
         text = {
-            Column {
-                OutlinedTextField(
-                    value = habitName,
-                    onValueChange = { habitName = it },
-                    label = { Text("Habit Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = habitDescription,
-                    onValueChange = { habitDescription = it },
-                    label = { Text("Description (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
-            }
+            OutlinedTextField(
+                value = newHabitName,
+                onValueChange = { newHabitName = it },
+                label = { Text("Habit Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (habitName.isNotBlank()) { // Only add if habit name is not empty
-                        onAddHabit(habitName.trim(), habitDescription.trim())
+                    if (newHabitName.isNotBlank()) { // Only add if habit name is not empty
+                        onAddHabit(newHabitName.trim())
                     }
                 },
-                enabled = habitName.isNotBlank() // Enable button only if habit name is entered
+                enabled = newHabitName.isNotBlank() // Enable button only if text field is not blank
             ) {
-                Text("Add Habit")
+                Text("Add")
             }
         },
         dismissButton = {
