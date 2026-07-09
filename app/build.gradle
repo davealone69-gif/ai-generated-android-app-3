@@ -1,0 +1,2 @@
+// Replaced legacy buildscript block with modern plugins block in app-level
+// This file is now empty or removed as logic is consolidated in app/build.gradle.kts
