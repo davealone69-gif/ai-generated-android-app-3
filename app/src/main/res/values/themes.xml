@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here -->
+        <!-- Explicitly setting parent to the base Material3 theme to avoid recursion -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
 </resources>
