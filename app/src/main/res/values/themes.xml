@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Fixed recursion: parent must be Theme.Material3.DayNight.NoActionBar -->
     <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Explicitly setting parent to the base Material3 theme to avoid recursion -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
+    </style>
+    
+    <!-- Corrected base theme reference -->
+    <style name="Theme.DroidCraft" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@android:color/holo_purple</item>
     </style>
 </resources>
