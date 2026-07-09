@@ -1,10 +1,2 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.2'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
-    }
-}
+// Project-level build file removed in favor of plugins DSL in app/build.gradle.kts
+// Cleaned up to avoid dependency conflicts.
