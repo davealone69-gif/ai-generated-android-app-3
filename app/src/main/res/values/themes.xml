@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- This is a custom override of the Material3 theme -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
 </resources>
