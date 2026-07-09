@@ -3,101 +3,110 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MapsAppScreen()
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    MainAppScreen()
+                }
+            }
         }
     }
 }
 
 @Composable
-fun MapsAppScreen() {
-    var trackerStatus by remember { mutableStateOf("Active") }
-    var locationName by remember { mutableStateOf("Silicon Valley, CA") }
-    var coordinates by remember { mutableStateOf("37.4220° N, 122.0841° W") }
+fun MainAppScreen() {
+    val totalTime = 25 * 60L
+    var timeLeft by remember { mutableLongStateOf(totalTime) }
+    var isRunning by remember { mutableStateOf(false) }
+    var pomodorosCompleted by remember { mutableIntStateOf(0) }
+    
+    val progress by animateFloatAsState(
+        targetValue = timeLeft.toFloat() / totalTime.toFloat(),
+        label = "progress"
+    )
+
+    LaunchedEffect(key1 = isRunning, key2 = timeLeft) {
+        if (isRunning && timeLeft > 0) {
+            delay(1000L)
+            timeLeft--
+        } else if (timeLeft == 0L) {
+            isRunning = false
+            pomodorosCompleted++
+            timeLeft = totalTime
+        }
+    }
+
+    val minutes = (timeLeft / 60).toString().padStart(2, '0')
+    val seconds = (timeLeft % 60).toString().padStart(2, '0')
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "GeoTracker Cloud Map",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+        Text(
+            text = "Pomodoro Timer",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(200.dp)) {
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 12.dp,
+                strokeCap = StrokeCap.Round
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Real-time location simulation",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                text = "$minutes:$seconds",
+                style = MaterialTheme.typography.displaySmall
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp)
-                .background(Color(0xFFE0F7FA), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "🗺️ Map Simulation Grid",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color(0xFF006064)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Coordinates: $coordinates",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF00838F)
-                )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(onClick = { isRunning = !isRunning }) {
+                Text(if (isRunning) "Pause" else "Start")
+            }
+            OutlinedButton(onClick = { 
+                isRunning = false
+                timeLeft = totalTime 
+            }) {
+                Text("Reset")
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
-        ) {
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Location: $locationName",
-                    fontWeight = FontWeight.Bold,
+                    text = "Statistics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Pomodoros Completed: $pomodorosCompleted",
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Status: $trackerStatus",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        trackerStatus = "GPS Connected"
-                        coordinates = "37.7749° N, 122.4194° W"
-                        locationName = "San Francisco, CA"
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Refresh Coordinates")
-                }
             }
         }
     }
