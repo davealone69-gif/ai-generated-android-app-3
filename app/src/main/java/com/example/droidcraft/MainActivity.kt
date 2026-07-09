@@ -3,19 +3,16 @@ package com.example.droidcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -30,21 +27,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
 
 @Composable
 fun HabitTrackerScreen() {
-    var habits by remember { mutableStateOf(listOf(
-        Habit(1, "Morning Meditation", false),
-        Habit(2, "Drink 2L Water", false),
-        Habit(3, "Read for 30 minutes", false)
-    )) }
-    var newHabitName by remember { mutableStateOf("") }
+    var habits by remember { mutableStateOf(listOf<Habit>()) }
+    var habitName by remember { mutableStateOf("") }
+    var nextId by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(16.dp)
     ) {
         Text(
             text = "My Habits",
@@ -53,55 +47,64 @@ fun HabitTrackerScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             OutlinedTextField(
-                value = newHabitName,
-                onValueChange = { newHabitName = it },
+                value = habitName,
+                onValueChange = { habitName = it },
+                modifier = Modifier.weight(1f),
                 label = { Text("New Habit") },
-                modifier = Modifier.weight(1f)
+                singleLine = true
             )
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = {
-                    if (newHabitName.isNotBlank()) {
-                        habits = habits + Habit(habits.size + 1, newHabitName, false)
-                        newHabitName = ""
+                    if (habitName.isNotBlank()) {
+                        habits = habits + Habit(nextId++, habitName)
+                        habitName = ""
                     }
-                },
-                modifier = Modifier.align(Alignment.CenterVertically).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
+                Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            modifier = Modifier.fillWeight(1f)
+        ) {
             items(habits) { habit ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = habit.name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        IconToggleButton(
-                            checked = habit.isCompleted,
-                            onCheckedChange = { isChecked ->
-                                habits = habits.map {
-                                    if (it.id == habit.id) it.copy(isCompleted = isChecked) else it
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = habit.isCompleted,
+                                onCheckedChange = { checked ->
+                                    habits = habits.map {
+                                        if (it.id == habit.id) it.copy(isCompleted = checked) else it
+                                    }
                                 }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Toggle",
-                                tint = if (habit.isCompleted) Color(0xFF4CAF50) else Color.Gray
                             )
+                            Text(text = habit.name)
+                        }
+                        IconButton(onClick = {
+                            habits = habits.filter { it.id != habit.id }
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }
                 }
