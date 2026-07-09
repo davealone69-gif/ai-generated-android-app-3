@@ -17,8 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,17 +30,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
+
 @Composable
 fun HabitTrackerScreen() {
     var habitName by remember { mutableStateOf("") }
     var habits by remember { mutableStateOf(listOf<Habit>()) }
-    var nextId by remember { mutableStateOf(0) }
+    var idCounter by remember { mutableStateOf(0) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             text = "My Habits",
             style = MaterialTheme.typography.headlineMedium,
@@ -50,23 +46,21 @@ fun HabitTrackerScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = habitName,
                 onValueChange = { habitName = it },
                 label = { Text("New Habit") },
                 modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = {
-                if (habitName.isNotBlank()) {
-                    habits = habits + Habit(nextId++, habitName)
-                    habitName = ""
+            IconButton(
+                onClick = {
+                    if (habitName.isNotBlank()) {
+                        habits = habits + Habit(idCounter++, habitName)
+                        habitName = ""
+                    }
                 }
-            }) {
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
@@ -75,37 +69,31 @@ fun HabitTrackerScreen() {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(habits) { habit ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = habit.name,
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (habit.isCompleted) FontWeight.Bold else FontWeight.Normal
+                            modifier = Modifier.weight(1f)
                         )
-                        Row {
-                            IconButton(onClick = {
-                                habits = habits.map {
-                                    if (it.id == habit.id) it.copy(isCompleted = !it.isCompleted) else it
-                                }
-                            }) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = "Complete",
-                                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                        IconButton(onClick = {
+                            habits = habits.map {
+                                if (it.id == habit.id) it.copy(isCompleted = !it.isCompleted) else it
                             }
-                            IconButton(onClick = { habits = habits.filter { it.id != habit.id } }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Toggle Completion",
+                                tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        IconButton(onClick = {
+                            habits = habits.filter { it.id != habit.id }
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
