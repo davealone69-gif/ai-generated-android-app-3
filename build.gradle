@@ -1,3 +1,10 @@
-// Removed the buildscript block. In modern Gradle projects, dependency management 
-// for plugins is handled in settings.gradle.kts and app/build.gradle.kts.
-// This file is now empty to prevent classpath conflicts.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.2'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
+    }
+}
