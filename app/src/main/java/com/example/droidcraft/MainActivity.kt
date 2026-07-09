@@ -8,8 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,74 +16,82 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    HabitTrackerScreen()
-                }
-            }
+            HabitTrackerApp()
         }
     }
 }
 
-data class Habit(val id: Int, val name: String, var isDone: Boolean = false)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitTrackerScreen() {
-    var habits by remember { mutableStateOf(listOf(Habit(1, "Drink 2L Water"), Habit(2, "Morning Exercise"))) }
-    var text by remember { mutableStateOf("") }
-    var nextId by remember { mutableStateOf(3) }
+fun HabitTrackerApp() {
+    var habitList by remember { mutableStateOf(listOf<Habit>()) }
+    var habitInput by remember { mutableStateOf("") }
+    var nextId by remember { mutableStateOf(0) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "My Habits",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                modifier = Modifier.weight(1f),
-                label = { Text("New habit") }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    if (text.isNotBlank()) {
-                        habits = habits + Habit(nextId++, text)
-                        text = ""
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterVertically)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Daily Habits") })
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                if (habitInput.isNotBlank()) {
+                    habitList = habitList + Habit(nextId++, habitInput, false)
+                    habitInput = ""
+                }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            OutlinedTextField(
+                value = habitInput,
+                onValueChange = { habitInput = it },
+                label = { Text("New Habit") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn {
-            items(habits) { habit ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (habit.isDone) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(habitList) { habit ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(habit.name, modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            habits = habits.map { if (it.id == habit.id) it.copy(isDone = !it.isDone) else it }
-                        }) {
-                            Icon(Icons.Default.Check, contentDescription = "Toggle")
-                        }
-                        IconButton(onClick = { habits = habits.filter { it.id != habit.id } }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = habit.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            IconButton(onClick = {
+                                habitList = habitList.map {
+                                    if (it.id == habit.id) it.copy(isCompleted = !it.isCompleted) else it
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Toggle completion",
+                                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                )
+                            }
                         }
                     }
                 }
