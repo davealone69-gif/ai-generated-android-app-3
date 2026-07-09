@@ -9,47 +9,51 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    HabitTrackerScreen()
-                }
+                HabitTrackerScreen()
             }
         }
     }
 }
 
+data class Habit(val id: Int, val name: String, var completed: Boolean)
+
 @Composable
 fun HabitTrackerScreen() {
     var habits by remember { mutableStateOf(listOf(
-        Habit(1, "Morning Meditation"),
-        Habit(2, "Drink 2L Water"),
-        Habit(3, "Read 30 minutes")
+        Habit(1, "Drink 2L Water", false),
+        Habit(2, "Morning Workout", false),
+        Habit(3, "Read 20 pages", false)
     )) }
+    
     var newHabitName by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
         Text(
-            text = "My Habits",
+            text = "Daily Habits",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            fontWeight = FontWeight.Bold
         )
+        
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = newHabitName,
                 onValueChange = { newHabitName = it },
@@ -60,7 +64,7 @@ fun HabitTrackerScreen() {
             IconButton(
                 onClick = {
                     if (newHabitName.isNotBlank()) {
-                        habits = habits + Habit(habits.size + 1, newHabitName)
+                        habits = habits + Habit(habits.size + 1, newHabitName, false)
                         newHabitName = ""
                     }
                 },
@@ -70,35 +74,40 @@ fun HabitTrackerScreen() {
             }
         }
 
-        LazyColumn {
-            items(habits) { habit ->
-                HabitItem(habit = habit, onToggle = {
-                    habits = habits.map {
-                        if (it.id == habit.id) it.copy(isCompleted = !it.isCompleted) else it
-                    }
-                })
-            }
-        }
-    }
-}
+        Spacer(modifier = Modifier.height(16.dp))
 
-@Composable
-fun HabitItem(habit: Habit, onToggle: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = habit.name, modifier = Modifier.weight(1f))
-            IconButton(onClick = onToggle) {
-                Icon(
-                    imageVector = if (habit.isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                    contentDescription = "Toggle",
-                    tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                )
+        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            items(habits) { habit ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = habit.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (habit.completed) FontWeight.Bold else FontWeight.Normal
+                        )
+                        IconButton(onClick = {
+                            habits = habits.map {
+                                if (it.id == habit.id) it.copy(completed = !it.completed) else it
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Toggle Habit",
+                                tint = if (habit.completed) Color(0xFF4CAF50) else Color.Gray
+                            )
+                        }
+                    }
+                }
             }
         }
     }
