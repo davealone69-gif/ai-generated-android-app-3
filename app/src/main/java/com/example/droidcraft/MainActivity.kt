@@ -1,460 +1,205 @@
 package com.example.droidcraft
 
-import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import java.time.LocalDate
-import java.util.UUID
 
-// --- Theme Definition ---
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF66BB6A), // Green 400
-    onPrimary = Color.Black,
-    primaryContainer = Color(0xFF1B5E20), // Green 900
-    onPrimaryContainer = Color.White,
-    secondary = Color(0xFF81C784), // Green 300
-    onSecondary = Color.Black,
-    surface = Color(0xFF1A1C1E),
-    onSurface = Color(0xFFE3E2E6),
-    background = Color(0xFF121212), // Darker background
-    onBackground = Color(0xFFE3E2E6),
-    error = Color(0xFFCF6679), // Red
-    onError = Color.Black,
-    surfaceContainer = Color(0xFF2B2B2B), // Slightly lighter than background for cards
-    onSurfaceVariant = Color(0xFFC4C6D0)
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF388E3C), // Green 700
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFC8E6C9), // Green 100
-    onPrimaryContainer = Color.Black,
-    secondary = Color(0xFF66BB6A), // Green 400
-    onSecondary = Color.Black,
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1C1B1F),
-    background = Color(0xFFF0F2F5), // Light background
-    onBackground = Color(0xFF1C1B1F),
-    error = Color(0xFFB00020), // Red
-    onError = Color.White,
-    surfaceContainer = Color(0xFFFFFFFF), // White for cards
-    onSurfaceVariant = Color(0xFF44474E)
-)
-
-@Composable
-fun DroidCraftTheme(
-    darkTheme: Boolean = androidx.compose.foundation.isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography(), // Using Material3 default typography
-        content = content
-    )
-}
-
-// --- Data Layer ---
-// Data class to represent a single habit, now serializable
-@kotlinx.serialization.Serializable
+// Data class for a habit
 data class Habit(
-    val id: String = UUID.randomUUID().toString(),
-    var name: String,
-    var description: String = "",
-    var currentStreak: Int = 0,
-    var lastCompletedDate: String? = null // Store as String for serialization
-) {
-    // Helper function to check if the habit was completed on the current day
-    fun isCompletedToday(): Boolean {
-        return lastCompletedDate == LocalDate.now().toString()
-    }
-}
+    val id: Int,
+    val name: String,
+    val isCompletedToday: Boolean = false,
+    val streak: Int = 0,
+    val lastCompletionDate: LocalDate? = null
+)
 
-// DataStore Preferences Key
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "habit_tracker_prefs")
-val HABITS_KEY = stringPreferencesKey("habits_list")
-
-class HabitDataStoreManager(private val dataStore: DataStore<Preferences>) {
-
-    private val json = Json { ignoreUnknownKeys = true } // Configure JSON serializer
-
-    // Flow to emit the current list of habits from DataStore
-    val habitsFlow: StateFlow<List<Habit>> = MutableStateFlow(emptyList())
-
-    init {
-        // Initialize habitsFlow by loading from DataStore
-        viewModelScope.launch {
-            loadHabits()
-        }
-    }
-
-    private suspend fun loadHabits() {
-        dataStore.data.collect { preferences ->
-            val habitsJson = preferences[HABITS_KEY]
-            val habitsList = if (habitsJson != null) {
-                try {
-                    json.decodeFromString<List<Habit>>(habitsJson)
-                } catch (e: Exception) {
-                    // Handle deserialization errors (e.g., if data structure changes)
-                    e.printStackTrace()
-                    emptyList()
-                }
-            } else {
-                emptyList()
-            }
-            (habitsFlow as MutableStateFlow).value = habitsList
-        }
-    }
-
-    suspend fun saveHabits(habits: List<Habit>) {
-        dataStore.edit { preferences ->
-            preferences[HABITS_KEY] = json.encodeToString(habits)
-        }
-    }
-}
-
-// --- ViewModel Layer ---
-class HabitViewModel(application: Application, private val habitDataStoreManager: HabitDataStoreManager) : AndroidViewModel(application) {
-
-    private val _habits: MutableStateFlow<List<Habit>> = MutableStateFlow(emptyList())
-    val habits: StateFlow<List<Habit>> = _habits.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            habitDataStoreManager.habitsFlow.collect {
-                _habits.value = it
-            }
-        }
-    }
-
-    fun addHabit(name: String, description: String) {
-        if (name.isBlank()) return // Simple validation
-        viewModelScope.launch {
-            val currentHabits = _habits.value.toMutableList()
-            currentHabits.add(Habit(name = name.trim(), description = description.trim()))
-            habitDataStoreManager.saveHabits(currentHabits)
-        }
-    }
-
-    fun markHabitComplete(habitId: String) {
-        viewModelScope.launch {
-            val currentHabits = _habits.value.toMutableList()
-            val index = currentHabits.indexOfFirst { it.id == habitId }
-            if (index != -1) {
-                val habit = currentHabits[index]
-                val today = LocalDate.now()
-
-                // If already completed today, do nothing.
-                if (habit.lastCompletedDate == today.toString()) {
-                    return@launch
-                }
-
-                val updatedHabit = habit.copy()
-
-                // Streak logic:
-                val lastDate = updatedHabit.lastCompletedDate?.let { LocalDate.parse(it) }
-                if (lastDate == null || lastDate == today.minusDays(1)) {
-                    updatedHabit.currentStreak++
-                } else {
-                    updatedHabit.currentStreak = 1 // Streak broken, start new streak
-                }
-                updatedHabit.lastCompletedDate = today.toString() // Update the last completion date
-
-                currentHabits[index] = updatedHabit
-                habitDataStoreManager.saveHabits(currentHabits)
-            }
-        }
-    }
-
-    fun editHabit(habitId: String, newName: String, newDescription: String) {
-        if (newName.isBlank()) return // Simple validation
-        viewModelScope.launch {
-            val currentHabits = _habits.value.toMutableList()
-            val index = currentHabits.indexOfFirst { it.id == habitId }
-            if (index != -1) {
-                val updatedHabit = currentHabits[index].copy(
-                    name = newName.trim(),
-                    description = newDescription.trim()
-                )
-                currentHabits[index] = updatedHabit
-                habitDataStoreManager.saveHabits(currentHabits)
-            }
-        }
-    }
-
-    fun deleteHabit(habitId: String) {
-        viewModelScope.launch {
-            val currentHabits = _habits.value.toMutableList()
-            val removed = currentHabits.removeIf { it.id == habitId }
-            if (removed) {
-                habitDataStoreManager.saveHabits(currentHabits)
-            }
-        }
-    }
-
-    // Factory for creating ViewModel with dependencies
-    class Factory(private val application: Application, private val dataStore: DataStore<Preferences>) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(HabitViewModel::class.java)) {
-                val dataStoreManager = HabitDataStoreManager(dataStore)
-                @Suppress("UNCHECKED_CAST")
-                return HabitViewModel(application, dataStoreManager) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
-    }
-}
-
-// --- UI Layer ---
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            DroidCraftTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // Provide ViewModel to the screen
-                    val application = application as Application
-                    val dataStore = LocalContext.current.dataStore
-                    val viewModel: HabitViewModel = viewModel(
-                        factory = HabitViewModel.Factory(application, dataStore)
-                    )
-                    HabitTrackerScreen(viewModel = viewModel)
-                }
+            // Provide a basic MaterialTheme for the single-file app
+            HabitTrackerTheme {
+                HabitTrackerScreen()
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitTrackerScreen(viewModel: HabitViewModel) {
-    val habits by viewModel.habits.collectAsState()
+fun HabitTrackerScreen() {
+    // State for the list of habits
+    val habits: SnapshotStateList<Habit> = remember { mutableStateListOf() }
 
-    var showAddHabitDialog by remember { mutableStateOf(false) }
-    var showEditHabitDialog by remember { mutableStateOf(false) }
-    var habitToEdit by remember { mutableStateOf<Habit?>(null) }
+    // State for the new habit input field
+    var newHabitName by remember { mutableStateOf("") }
+    var nextHabitId by remember { mutableStateOf(0) } // Simple ID generator
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    // Sample data for initial display
+    LaunchedEffect(Unit) {
+        if (habits.isEmpty()) {
+            habits.add(Habit(nextHabitId++, "Drink 8 glasses of water"))
+            habits.add(Habit(nextHabitId++, "Read for 30 minutes"))
+            habits.add(Habit(nextHabitId++, "Exercise for 20 minutes"))
+        }
+    }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("HabitForge", fontWeight = FontWeight.Bold) }
+            TopAppBar(
+                title = { Text("My Daily Habits", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddHabitDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Filled.Add, "Add new habit")
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { paddingValues ->
-        if (habits.isEmpty()) {
-            EmptyState(modifier = Modifier.padding(paddingValues))
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(habits, key = { it.id }) { habit ->
-                    val dismissState = rememberDismissState(
-                        confirmValueChange = { value ->
-                            if (value == DismissValue.DismissedToEnd || value == DismissValue.DismissedToStart) {
-                                viewModel.deleteHabit(habit.id)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Habit '${habit.name}' deleted.")
-                                }
-                                true
-                            } else {
-                                false
-                            }
-                        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Main content area: Habit List
+            if (habits.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No habits yet! Add one below.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 8.dp)
+                ) {
+                    items(habits, key = { it.id }) { habit ->
+                        HabitItem(
+                            habit = habit,
+                            onToggleComplete = { toggledHabit ->
+                                val index = habits.indexOfFirst { it.id == toggledHabit.id }
+                                if (index != -1) {
+                                    val today = LocalDate.now()
+                                    val updatedHabit = if (!toggledHabit.isCompletedToday) {
+                                        // Mark as complete
+                                        val newStreak = if (toggledHabit.lastCompletionDate == null || toggledHabit.lastCompletionDate?.plusDays(1) != today) {
+                                            1 // Reset or start new streak
+                                        } else {
+                                            toggledHabit.streak + 1 // Continue streak
+                                        }
+                                        toggledHabit.copy(
+                                            isCompletedToday = true,
+                                            streak = newStreak,
+                                            lastCompletionDate = today
+                                        )
+                                    } else {
+                                        // Unmark as complete (only affects today's status/streak if marked today)
+                                        if (toggledHabit.lastCompletionDate == today) {
+                                            val newStreak = (toggledHabit.streak - 1).coerceAtLeast(0)
+                                            toggledHabit.copy(
+                                                isCompletedToday = false,
+                                                streak = newStreak,
+                                                lastCompletionDate = if (newStreak == 0) null else toggledHabit.lastCompletionDate // Simplified: reset date if streak goes to 0
+                                            )
+                                        } else {
+                                            // If marked on a previous day, just unmark for today without changing historical streak
+                                            toggledHabit.copy(isCompletedToday = false)
+                                        }
+                                    }
+                                    habits[index] = updatedHabit
+                                }
+                            },
+                            onDelete = { habitToDelete ->
+                                habits.remove(habitToDelete)
+                            }
+                        )
+                    }
+                }
+            }
 
-                    SwipeToDismiss(
-                        state = dismissState,
-                        background = {
-                            val color = when (dismissState.dismissDirection) {
-                                DismissDirection.StartToEnd -> Color.Red.copy(alpha = 0.8f)
-                                DismissDirection.EndToStart -> Color.Red.copy(alpha = 0.8f)
-                                null -> Color.Transparent
-                            }
-                            val icon = Icons.Filled.Delete
-                            val alignment = when (dismissState.dismissDirection) {
-                                DismissDirection.StartToEnd -> Alignment.CenterStart
-                                DismissDirection.EndToStart -> Alignment.CenterEnd
-                                null -> Alignment.Center
-                            }
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(color, RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = alignment
-                            ) {
-                                Icon(
-                                    icon,
-                                    contentDescription = "Delete Habit",
-                                    tint = MaterialTheme.colorScheme.onError
-                                )
+            // Add new habit section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    OutlinedTextField(
+                        value = newHabitName,
+                        onValueChange = { newHabitName = it },
+                        label = { Text("New Habit Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            if (newHabitName.isNotBlank()) {
+                                habits.add(Habit(nextHabitId++, newHabitName.trim()))
+                                newHabitName = "" // Clear input field
                             }
                         },
-                        directions = setOf(DismissDirection.EndToStart, DismissDirection.StartToEnd),
-                        dismissContent = {
-                            HabitItem(
-                                habit = habit,
-                                onMarkComplete = {
-                                    viewModel.markHabitComplete(it)
-                                    if (!habit.isCompletedToday()) { // Only show if it was marked
-                                        scope.launch { snackbarHostState.showSnackbar("Habit '${habit.name}' completed!") }
-                                    }
-                                },
-                                onEdit = {
-                                    habitToEdit = it
-                                    showEditHabitDialog = true
-                                }
-                            )
-                        }
-                    )
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = newHabitName.isNotBlank()
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add Habit")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Habit")
+                    }
                 }
             }
         }
-
-        // Add New Habit Dialog
-        if (showAddHabitDialog) {
-            AddEditHabitDialog(
-                title = "Add New Habit",
-                confirmButtonText = "Add Habit",
-                onDismiss = { showAddHabitDialog = false },
-                onConfirm = { name, description ->
-                    viewModel.addHabit(name, description)
-                    scope.launch { snackbarHostState.showSnackbar("Habit '$name' added!") }
-                    showAddHabitDialog = false
-                }
-            )
-        }
-
-        // Edit Habit Dialog
-        if (showEditHabitDialog && habitToEdit != null) {
-            val currentHabit = habitToEdit!!
-            AddEditHabitDialog(
-                title = "Edit Habit",
-                confirmButtonText = "Save Changes",
-                initialName = currentHabit.name,
-                initialDescription = currentHabit.description,
-                onDismiss = {
-                    showEditHabitDialog = false
-                    habitToEdit = null
-                },
-                onConfirm = { name, description ->
-                    viewModel.editHabit(currentHabit.id, name, description)
-                    scope.launch { snackbarHostState.showSnackbar("Habit '${currentHabit.name}' updated!") }
-                    showEditHabitDialog = false
-                    habitToEdit = null
-                }
-            )
-        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmptyState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Filled.List,
-            contentDescription = "No habits icon",
-            modifier = Modifier.size(96.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "No habits yet!",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            text = "Tap the '+' button below to start tracking your first habit.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun HabitItem(habit: Habit, onMarkComplete: (String) -> Unit, onEdit: (Habit) -> Unit) {
-    val isCompletedToday = habit.isCompletedToday()
-
+fun HabitItem(habit: Habit, onToggleComplete: (Habit) -> Unit, onDelete: (Habit) -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onEdit(habit) }, // Make card clickable to edit
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        onClick = { onToggleComplete(habit) },
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompletedToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+            containerColor = if (habit.isCompletedToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -466,160 +211,76 @@ fun HabitItem(habit: Habit, onMarkComplete: (String) -> Unit, onEdit: (Habit) ->
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = habit.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (habit.isCompletedToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 )
-                if (habit.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = habit.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Streak: ${habit.streak} days",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (habit.isCompletedToday) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = { onDelete(habit) }
+                ) {
                     Icon(
-                        Icons.Filled.Star, // Changed icon for streak
-                        contentDescription = "Streak indicator",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Streak: ${habit.currentStreak} day${if (habit.currentStreak != 1) "s" else ""}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
+                        Icons.Filled.Delete,
+                        contentDescription = "Delete Habit",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-            Button(
-                onClick = { onMarkComplete(habit.id) },
-                enabled = !isCompletedToday,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isCompletedToday) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(if (isCompletedToday) "Completed!" else "Mark Complete")
+                Checkbox(
+                    checked = habit.isCompletedToday,
+                    onCheckedChange = { _ -> onToggleComplete(habit) },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.outline,
+                        checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
             }
         }
     }
 }
 
+/**
+ * A basic MaterialTheme wrapper for a single-file application.
+ * In a real project, this would typically be defined in `ui.theme.Theme.kt`.
+ */
 @Composable
-fun AddEditHabitDialog(
-    title: String,
-    confirmButtonText: String,
-    initialName: String = "",
-    initialDescription: String = "",
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, description: String) -> Unit
+fun HabitTrackerTheme(
+    content: @Composable () -> Unit
 ) {
-    var name by remember(initialName) { mutableStateOf(initialName) }
-    var description by remember(initialDescription) { mutableStateOf(initialDescription) }
-    val isNameValid = remember { derivedStateOf { name.isNotBlank() } }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Habit Name") },
-                    singleLine = true,
-                    isError = !isNameValid.value,
-                    supportingText = { if (!isNameValid.value) Text("Name cannot be empty") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (isNameValid.value) {
-                        onConfirm(name, description)
-                    }
-                },
-                enabled = isNameValid.value
-            ) {
-                Text(confirmButtonText)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
+    val lightColorScheme = lightColorScheme(
+        primary = Color(0xFF4CAF50), // Green for habits
+        primaryContainer = Color(0xFFC8E6C9), // Lighter green
+        onPrimary = Color.White,
+        onPrimaryContainer = Color(0xFF1B5E20),
+        secondary = Color(0xFF8BC34A),
+        secondaryContainer = Color(0xFFDCEDC8),
+        onSecondary = Color.White,
+        onSecondaryContainer = Color(0xFF33691E),
+        background = Color(0xFFF8F8F8),
+        onBackground = Color.Black,
+        surface = Color.White,
+        onSurface = Color.Black,
+        surfaceVariant = Color(0xFFE0E0E0),
+        onSurfaceVariant = Color(0xFF424242),
+        error = Color(0xFFB00020),
+        onError = Color.White,
+        outline = Color(0xFFBDBDBD)
     )
-}
 
-
-// --- Previews ---
-@Preview(showBackground = true)
-@Composable
-fun PreviewHabitTrackerScreen() {
-    DroidCraftTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            // For preview, we can create a dummy ViewModel
-            val previewViewModel = object : HabitViewModel(Application(), HabitDataStoreManager(LocalContext.current.dataStore)) {
-                private val _previewHabits = MutableStateFlow(
-                    listOf(
-                        Habit(id = "1", name = "Drink Water", description = "8 glasses a day", currentStreak = 5, lastCompletedDate = LocalDate.now().toString()),
-                        Habit(id = "2", name = "Exercise", description = "30 min workout", currentStreak = 2, lastCompletedDate = LocalDate.now().minusDays(1).toString()),
-                        Habit(id = "3", name = "Read Book", description = "10 pages before bed", currentStreak = 0)
-                    )
-                )
-                override val habits: StateFlow<List<Habit>> = _previewHabits.asStateFlow()
-
-                override fun markHabitComplete(habitId: String) {
-                    val updatedList = _previewHabits.value.toMutableList()
-                    val index = updatedList.indexOfFirst { it.id == habitId }
-                    if (index != -1) {
-                        val habit = updatedList[index]
-                        if (!habit.isCompletedToday()) {
-                            updatedList[index] = habit.copy(
-                                currentStreak = habit.currentStreak + 1,
-                                lastCompletedDate = LocalDate.now().toString()
-                            )
-                            _previewHabits.value = updatedList
-                        }
-                    }
-                }
-                override fun addHabit(name: String, description: String) { /* No-op for preview */ }
-                override fun editHabit(habitId: String, newName: String, newDescription: String) { /* No-op for preview */ }
-                override fun deleteHabit(habitId: String) {
-                    _previewHabits.value = _previewHabits.value.filter { it.id != habitId }
-                }
-            }
-            HabitTrackerScreen(viewModel = previewViewModel)
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewEmptyState() {
-    DroidCraftTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            EmptyState()
-        }
-    }
+    MaterialTheme(
+        colorScheme = lightColorScheme,
+        typography = Typography(), // Use default Typography
+        content = content
+    )
 }
