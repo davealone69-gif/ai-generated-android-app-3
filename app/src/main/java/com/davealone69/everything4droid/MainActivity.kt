@@ -3,10 +3,15 @@ package com.davealone69.everything4droid
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -16,20 +21,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-
-data class Habit(
-    val id: Long,
-    val name: String,
-    val description: String,
-    val streak: Int,
-    val isCompleted: Boolean
-)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,9 +33,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
-                    primary = Color(0xFF4CAF50),
-                    secondary = Color(0xFF81C784),
-                    background = Color(0xFFF1F8E9),
+                    primary = Color(0xFF6200EE),
+                    secondary = Color(0xFF03DAC6),
+                    background = Color(0xFFF7F9FC),
                     surface = Color.White
                 )
             ) {
@@ -54,276 +50,361 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class Habit(
+    val id: String,
+    val name: String,
+    val category: String,
+    val isCompleted: Boolean = false,
+    val streak: Int = 0
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerApp() {
     var habits by remember {
         mutableStateOf(
             listOf(
-                Habit(1, "Drink Water", "8 glasses a day", 5, true),
-                Habit(2, "Morning Run", "30-minute outdoor jog", 12, false),
-                Habit(3, "Read Book", "At least 15 pages", 3, false),
-                Habit(4, "Meditate", "10-minute breathing exercise", 0, false)
+                Habit("1", "Drink 3L Water", "💧 Health", false, 3),
+                Habit("2", "30 mins Daily Walk", "🏃 Fitness", true, 7),
+                Habit("3", "Read Book", "📚 Mind", false, 12),
+                Habit("4", "Meditate 10m", "🧘 Peace", false, 1)
             )
         )
     }
 
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddForm by remember { mutableStateOf(false) }
     var newHabitName by remember { mutableStateOf("") }
-    var newHabitDesc by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("💧 Health") }
+    val categories = listOf("💧 Health", "🏃 Fitness", "📚 Mind", "🧘 Peace", "💼 Work")
 
     val completedCount = habits.count { it.isCompleted }
     val totalCount = habits.size
-    val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+    val completionRate = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "HabitFlow",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Summary Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Today's Progress",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "$completedCount of $totalCount habits completed",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    )
-                }
-            }
-
-            // Habit List
-            if (habits.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No habits added yet. Tap + to begin!",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Gray
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(habits, key = { it.id }) { habit ->
-                        HabitItem(
-                            habit = habit,
-                            onToggleComplete = {
-                                habits = habits.map {
-                                    if (it.id == habit.id) {
-                                        val newCompleted = !it.isCompleted
-                                        val newStreak = if (newCompleted) it.streak + 1 else maxOf(0, it.streak - 1)
-                                        it.copy(isCompleted = newCompleted, streak = newStreak)
-                                    } else {
-                                        it
-                                    }
-                                }
-                            },
-                            onDelete = {
-                                habits = habits.filter { it.id != habit.id }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showAddDialog) {
-        Dialog(onDismissRequest = { showAddDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Create New Habit",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    OutlinedTextField(
-                        value = newHabitName,
-                        onValueChange = { newHabitName = it },
-                        label = { Text("Habit Name") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = newHabitDesc,
-                        onValueChange = { newHabitDesc = it },
-                        label = { Text("Description") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = {
-                            showAddDialog = false
-                            newHabitName = ""
-                            newHabitDesc = ""
-                        }) {
-                            Text("Cancel")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (newHabitName.isNotBlank()) {
-                                    val newHabit = Habit(
-                                        id = System.currentTimeMillis(),
-                                        name = newHabitName,
-                                        description = newHabitDesc,
-                                        streak = 0,
-                                        isCompleted = false
-                                    )
-                                    habits = habits + newHabit
-                                    showAddDialog = false
-                                    newHabitName = ""
-                                    newHabitDesc = ""
-                                }
-                            },
-                            enabled = newHabitName.isNotBlank()
-                        ) {
-                            Text("Add")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun HabitItem(
-    habit: Habit,
-    onToggleComplete: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (habit.isCompleted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
+        // App Title Block
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+            Column {
+                Text(
+                    text = "HabitFlow",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Build routines, master life",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
+            IconButton(
+                onClick = { showAddForm = !showAddForm },
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White
+                )
             ) {
-                IconButton(
-                    onClick = onToggleComplete,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = if (habit.isCompleted) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(20.dp)
-                        )
+                Icon(
+                    imageVector = if (showAddForm) Icons.Default.Check else Icons.Default.Add,
+                    contentDescription = "Add Habit"
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Progress Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE7F6))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Today's Journey",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Complete Habit",
-                        tint = if (habit.isCompleted) Color.White else Color.Gray
+                    Text(
+                        text = "$completedCount of $totalCount habits done!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${(completionRate * 100).toInt()}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = completionRate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0xFFD1C4E9)
+                )
+            }
+        }
 
-                Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-                Column {
+        // Expandable / Toggleable Add Habit Panel
+        AnimatedVisibility(
+            visible = showAddForm,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = habit.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                        text = "Create New Habit",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    if (habit.description.isNotEmpty()) {
-                        Text(
-                            text = habit.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
-                            textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newHabitName,
+                        onValueChange = { newHabitName = it },
+                        label = { Text("What habit do you want to start?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "🔥 Streak: ${habit.streak} days",
+                        text = "Category",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFFF9800)
+                        fontWeight = FontWeight.SemiBold
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        categories.forEach { cat ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (selectedCategory == cat) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                        else Color.Transparent
+                                    )
+                                    .clickable { selectedCategory = cat }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(text = cat, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            if (newHabitName.isNotBlank()) {
+                                habits = habits + Habit(
+                                    id = System.currentTimeMillis().toString(),
+                                    name = newHabitName,
+                                    category = selectedCategory
+                                )
+                                newHabitName = ""
+                                showAddForm = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Add to List")
+                    }
                 }
             }
+        }
 
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Habit",
-                    tint = Color.Red.copy(alpha = 0.7f)
+        // Section Title & Simulation Control
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Habit List",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Button(
+                onClick = {
+                    // Start next simulation day: Reset status, evaluate streaks
+                    habits = habits.map {
+                        if (it.isCompleted) {
+                            it.copy(isCompleted = false)
+                        } else {
+                            it.copy(streak = 0, isCompleted = false)
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text("Simulate Next Day ➡️", fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Habits List
+        if (habits.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No habits scheduled. Click '+' to start!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Gray
                 )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(habits) { habit ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Category Circle
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF3E5F5)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = habit.category.take(2),
+                                        fontSize = 18.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = habit.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (habit.isCompleted) Color.Gray else Color.Black
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "🔥 ${habit.streak} days",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFFF9800)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = habit.category.drop(2),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Action Button to check/uncheck
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (habit.isCompleted) Color(0xFF4CAF50)
+                                            else Color(0xFFE0E0E0)
+                                        )
+                                        .clickable {
+                                            habits = habits.map {
+                                                if (it.id == habit.id) {
+                                                    val nowCompleted = !it.isCompleted
+                                                    val newStreak = if (nowCompleted) it.streak + 1 else maxOf(0, it.streak - 1)
+                                                    it.copy(isCompleted = nowCompleted, streak = newStreak)
+                                                } else it
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Complete",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Delete Habit Button
+                                IconButton(
+                                    onClick = {
+                                        habits = habits.filter { it.id != habit.id }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete Habit",
+                                        tint = Color(0xFFE57373),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
