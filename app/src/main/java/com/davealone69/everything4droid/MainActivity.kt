@@ -3,6 +3,7 @@ package com.davealone69.everything4droid
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,7 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,13 +37,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
-                    primary = Color(0xFF4F46E5),
-                    onPrimary = Color.White,
-                    secondary = Color(0xFF10B981),
-                    background = Color(0xFFF9FAFB),
-                    surface = Color.White,
-                    primaryContainer = Color(0xFFEEF2FF),
-                    secondaryContainer = Color(0xFFD1FAE5)
+                    primary = Color(0xFF6200EE),
+                    secondary = Color(0xFF03DAC6),
+                    background = Color(0xFFF7F9FC)
                 )
             ) {
                 Surface(
@@ -54,12 +54,27 @@ class MainActivity : ComponentActivity() {
 }
 
 data class Habit(
-    val id: Long,
+    val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
-    val streak: Int,
-    val isCompletedToday: Boolean,
-    val category: String
-)
+    val colorHex: Long,
+    val icon: String,
+    val completedDates: Set<String> = emptySet()
+) {
+    fun getStreak(): Int {
+        var streak = 0
+        var checkDate = LocalDate.now()
+        
+        if (!completedDates.contains(checkDate.toString())) {
+            checkDate = checkDate.minusDays(1)
+        }
+        
+        while (completedDates.contains(checkDate.toString())) {
+            streak++
+            checkDate = checkDate.minusDays(1)
+        }
+        return streak
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,274 +82,297 @@ fun HabitTrackerScreen() {
     var habits by remember {
         mutableStateOf(
             listOf(
-                Habit(1, "Drink 3L Water", 5, true, "Health"),
-                Habit(2, "Read 15 Pages", 12, false, "Mind"),
-                Habit(3, "30 Mins Daily Run", 3, false, "Fitness"),
-                Habit(4, "Morning Meditation", 8, true, "Mind")
+                Habit(name = "Drink 2L Water", colorHex = 0xFF42A5F5, icon = "💧", completedDates = setOf(LocalDate.now().minusDays(1).toString(), LocalDate.now().toString())),
+                Habit(name = "Daily Yoga", colorHex = 0xFFAB47BC, icon = "🧘", completedDates = setOf(LocalDate.now().minusDays(1).toString())),
+                Habit(name = "Read 10 Pages", colorHex = 0xFF66BB6A, icon = "📚")
             )
         )
     }
 
-    var selectedCategory by remember { mutableStateOf("All") }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val categories = listOf("All", "Health", "Mind", "Fitness")
-    val filteredHabits = if (selectedCategory == "All") habits else habits.filter { it.category == selectedCategory }
-
-    val completedCount = habits.count { it.isCompletedToday }
-    val totalCount = habits.size
-    val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+    val todayStr = LocalDate.now().toString()
+    val completedTodayCount = habits.count { it.completedDates.contains(todayStr) }
+    val totalHabitsCount = habits.size
+    val progress = if (totalHabitsCount > 0) completedTodayCount.toFloat() / totalHabitsCount else 0f
 
     Scaffold(
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "My Habits",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineLarge
+                        )
+                        Text(
+                            text = "Keep up the momentum!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = Color.white
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
-    ) { paddingValues ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
+                .padding(innerPadding)
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // Header Title
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "HabitCraft",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Build habits, build your life",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                }
-
-                // Simulate new day button
-                IconButton(
-                    onClick = {
-                        habits = habits.map {
-                            it.copy(isCompletedToday = false)
-                        }
-                    },
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                        .size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Reset Daily Progress",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Progress Banner
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Today's Progress",
-                            fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "$completedCount/$totalCount Done",
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "$completedTodayCount of $totalHabitsCount habits done",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = progress,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(CircleShape),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.White.copy(alpha = 0.5f)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = if (progress == 1f) "✨ All habits smashed today! Keep it up!" else "Consistency is key! Complete your tasks.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Category filter tabs
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                categories.forEach { category ->
-                    val isSelected = selectedCategory == category
+                    Spacer(modifier = Modifier.width(16.dp))
                     Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(60.dp)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                shape = CircleShape
                             )
-                            .clickable { selectedCategory = category }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = category,
+                            text = "${(progress * 100).toInt()}%",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.Gray
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Habit List
-            if (filteredHabits.isEmpty()) {
+            if (habits.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No habits found in this category.\nClick + to create one!",
-                        textAlign = TextAlign.Center,
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("✨", fontSize = 48.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No habits tracked yet.",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Tap + to build a healthy routine!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    items(filteredHabits, key = { it.id }) { habit ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    // Check Circle Button
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (habit.isCompletedToday) MaterialTheme.colorScheme.secondaryContainer
-                                                else MaterialTheme.colorScheme.primaryContainer
-                                            )
-                                            .clickable {
-                                                habits = habits.map {
-                                                    if (it.id == habit.id) {
-                                                        val nextCompleted = !it.isCompletedToday
-                                                        val nextStreak = if (nextCompleted) it.streak + 1 else maxOf(0, it.streak - 1)
-                                                        it.copy(isCompletedToday = nextCompleted, streak = nextStreak)
-                                                    } else {
-                                                        it
-                                                    }
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (habit.isCompletedToday) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = "Completed",
-                                                tint = MaterialTheme.colorScheme.secondary
-                                            )
+                    items(habits, key = { it.id }) { habit ->
+                        HabitItemCard(
+                            habit = habit,
+                            onToggleDay = { dateStr ->
+                                habits = habits.map {
+                                    if (it.id == habit.id) {
+                                        val newDates = if (it.completedDates.contains(dateStr)) {
+                                            it.completedDates - dateStr
                                         } else {
-                                            Text(
-                                                text = "🔥",
-                                                fontSize = 16.sp
-                                            )
+                                            it.completedDates + dateStr
                                         }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    Column {
-                                        Text(
-                                            text = habit.name,
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = if (habit.isCompletedToday) Color.Gray else Color.Black
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            SuggestionChip(
-                                                onClick = { },
-                                                label = { Text(habit.category, fontSize = 10.sp) },
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.height(24.dp)
-                                            )
-                                            Text(
-                                                text = "Streak: ${habit.streak} days",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = Color.Gray,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                                        it.copy(completedDates = newDates)
+                                    } else {
+                                        it
                                     }
                                 }
+                            },
+                            onDelete = {
+                                habits = habits.filter { it.id != habit.id }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
 
-                                // Delete Button
-                                IconButton(
-                                    onClick = {
-                                        habits = habits.filter { it.id != habit.id }
-                                    }
-                                ) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete Habit",
-                                        tint = Color.Red.copy(alpha = 0.6f)
-                                    )
-                                }
+    if (showAddDialog) {
+        AddHabitDialog(
+            onDismiss = { showAddDialog = false },
+            onAddHabit = { name, icon, colorHex ->
+                val newHabit = Habit(
+                    name = name,
+                    icon = icon,
+                    colorHex = colorHex
+                )
+                habits = habits + newHabit
+                showAddDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun HabitItemCard(
+    habit: Habit,
+    onToggleDay: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val last7Days = remember {
+        (0..6).map { LocalDate.now().minusDays(it.toLong()) }.reversed()
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Color(habit.colorHex).copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = habit.icon, fontSize = 22.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = habit.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Streak",
+                                tint = Color(0xFFFFB300),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${habit.getStreak()} Day Streak",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Habit",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                last7Days.forEach { date ->
+                    val isCompleted = habit.completedDates.contains(date.toString())
+                    val isToday = date == LocalDate.now()
+                    val dayOfWeekLabel = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(2)
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = dayOfWeekLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isCompleted) Color(habit.colorHex)
+                                    else if (isToday) Color(habit.colorHex).copy(alpha = 0.1f)
+                                    else Color.LightGray.copy(alpha = 0.3f)
+                                )
+                                .clickable { onToggleDay(date.toString()) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isCompleted) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Done",
+                                    tint = Color.white,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            } else if (isToday) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(Color(habit.colorHex), CircleShape)
+                                )
                             }
                         }
                     }
@@ -342,111 +380,191 @@ fun HabitTrackerScreen() {
             }
         }
     }
+}
 
-    // Add Habit Dialog
-    if (showAddDialog) {
-        var habitName by remember { mutableStateOf("") }
-        var selectedNewCategory by remember { mutableStateOf("Health") }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddHabitDialog(
+    onDismiss: () -> Unit,
+    onAddHabit: (String, String, Long) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    
+    val icons = listOf("🏃", "💧", "🧘", "📚", "🥗", "😴", "🎸", "💻", "🧹", "💊", "💵", "🐶")
+    var selectedIcon by remember { mutableStateOf(icons[0]) }
 
-        Dialog(onDismissRequest = { showAddDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
+    val colors = listOf(
+        0xFFEF5350,
+        0xFFEC407A,
+        0xFFAB47BC,
+        0xFF5C6BC0,
+        0xFF42A5F5,
+        0xFF26A69A,
+        0xFF66BB6A,
+        0xFFFFCA28,
+        0xFF8D6E63,
+        0xFF78909C
+    )
+    var selectedColor by remember { mutableStateOf(colors[0]) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
                 modifier = Modifier
+                    .padding(24.dp)
                     .fillMaxWidth()
-                    .padding(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Text(
+                    text = "New Habit",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Habit Name") },
+                    placeholder = { Text("e.g. Read books") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Choose Icon",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Create New Habit",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = habitName,
-                        onValueChange = { habitName = it },
-                        label = { Text("Habit Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Select Category",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("Health", "Mind", "Fitness").forEach { categoryName ->
-                            val isChosen = selectedNewCategory == categoryName
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        if (isChosen) MaterialTheme.colorScheme.primaryContainer
-                                        else Color(0xFFF3F4F6)
-                                    )
-                                    .clickable { selectedNewCategory = categoryName }
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = categoryName,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = if (isChosen) MaterialTheme.colorScheme.primary else Color.DarkGray
-                                )
+                    val firstRow = icons.take(6)
+                    val secondRow = icons.drop(6)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            firstRow.forEach { icon ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (selectedIcon == icon) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .clickable { selectedIcon = icon },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = icon, fontSize = 20.sp)
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            secondRow.forEach { icon ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (selectedIcon == icon) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .clickable { selectedIcon = icon },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = icon, fontSize = 20.sp)
+                                }
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(
-                            onClick = { showAddDialog = false }
-                        ) {
-                            Text("Cancel", color = Color.Gray)
-                        }
-
-                        Button(
-                            onClick = {
-                                if (habitName.isNotBlank()) {
-                                    val newHabit = Habit(
-                                        id = System.currentTimeMillis(),
-                                        name = habitName,
-                                        streak = 0,
-                                        isCompletedToday = false,
-                                        category = selectedNewCategory
-                                    )
-                                    habits = habits + newHabit
-                                    showAddDialog = false
+                Text(
+                    text = "Choose Color",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val firstHalfColors = colors.take(5)
+                    val secondHalfColors = colors.drop(5)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            firstHalfColors.forEach { colorHex ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(colorHex))
+                                        .clickable { selectedColor = colorHex },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (selectedColor == colorHex) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.white,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Save Habit")
+                            }
                         }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            secondHalfColors.forEach { colorHex ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(colorHex))
+                                        .clickable { selectedColor = colorHex },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (selectedColor == colorHex) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.white,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onAddHabit(name, selectedIcon, selectedColor)
+                            }
+                        },
+                        enabled = name.isNotBlank()
+                    ) {
+                        Text("Add")
                     }
                 }
             }
