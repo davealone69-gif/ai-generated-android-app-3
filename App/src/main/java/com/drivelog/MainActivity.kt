@@ -3,17 +3,14 @@ package com.drivelog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -21,77 +18,85 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    HabitTrackerScreen()
-                }
-            }
+            MapsAppScreen()
         }
     }
 }
 
-data class Habit(val id: Int, val name: String, var isDone: Boolean)
-
 @Composable
-fun HabitTrackerScreen() {
-    var habits by remember { mutableStateOf(listOf(
-        Habit(1, "Drink 2L Water", false),
-        Habit(2, "Read 30 mins", false),
-        Habit(3, "Daily Exercise", false)
-    )) }
-    var newHabitName by remember { mutableStateOf("") }
+fun MapsAppScreen() {
+    var trackerStatus by remember { mutableStateOf("Active") }
+    var locationName by remember { mutableStateOf("Silicon Valley, CA") }
+    var coordinates by remember { mutableStateOf("37.4220° N, 122.0841° W") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "My Habits",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-            OutlinedTextField(
-                value = newHabitName,
-                onValueChange = { newHabitName = it },
-                label = { Text("New Habit") },
-                modifier = Modifier.weight(1f)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "GeoTracker Cloud Map",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    if (newHabitName.isNotBlank()) {
-                        habits = habits + Habit(habits.size + 1, newHabitName, false)
-                        newHabitName = ""
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterVertically)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Real-time location simulation",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .background(Color(0xFFE0F7FA), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "🗺️ Map Simulation Grid",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color(0xFF006064)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Coordinates: $coordinates",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF00838F)
+                )
             }
         }
 
-        LazyColumn {
-            items(habits) { habit ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Location: $locationName",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Status: $trackerStatus",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        trackerStatus = "GPS Connected"
+                        coordinates = "37.7749° N, 122.4194° W"
+                        locationName = "San Francisco, CA"
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = habit.name, modifier = Modifier.weight(1f))
-                        IconButton(onClick = {
-                            habits = habits.map {
-                                if (it.id == habit.id) it.copy(isDone = !it.isDone) else it
-                            }
-                        }) {
-                            Icon(
-                                imageVector = if (habit.isDone) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                                contentDescription = "Toggle Habit",
-                                tint = if (habit.isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Text("Refresh Coordinates")
                 }
             }
         }
