@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,80 +21,83 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                HabitTrackerScreen()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    HabitTrackerScreen()
+                }
             }
         }
     }
 }
 
-data class Habit(val id: Int, val name: String, var isCompleted: Boolean)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen() {
-    var habitName by remember { mutableStateOf("") }
-    val habitList = remember { mutableStateListOf<Habit>() }
-    var idCounter by remember { mutableStateOf(0) }
+    var habits by remember { mutableStateOf(listOf("Drink Water", "Exercise", "Read 10 pages")) }
+    var newHabit by remember { mutableStateOf("") }
+    var completedHabits by remember { mutableStateOf(setOf<String>()) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("My Habit Tracker") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                if (habitName.isNotBlank()) {
-                    habitList.add(Habit(idCounter++, habitName, false))
-                    habitName = ""
-                }
-            }) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text(
+            text = "My Habits",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            OutlinedTextField(
+                value = newHabit,
+                onValueChange = { newHabit = it },
+                modifier = Modifier.weight(1f),
+                label = { Text("New Habit") },
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(
+                onClick = {
+                    if (newHabit.isNotBlank()) {
+                        habits = habits + newHabit
+                        newHabit = ""
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterVertically)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            OutlinedTextField(
-                value = habitName,
-                onValueChange = { habitName = it },
-                label = { Text("Enter a new habit") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Your Habits", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            LazyColumn {
-                items(habitList) { habit ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(habits) { habit ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (completedHabits.contains(habit)) 
+                            MaterialTheme.colorScheme.primaryContainer 
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = habit.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Row {
-                                IconButton(onClick = { 
-                                    val index = habitList.indexOf(habit)
-                                    habitList[index] = habit.copy(isCompleted = !habit.isCompleted)
-                                }) {
-                                    Icon(
-                                        Icons.Default.Check, 
-                                        contentDescription = "Toggle",
-                                        tint = if (habit.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                    )
-                                }
-                                IconButton(onClick = { habitList.remove(habit) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                                }
+                        Text(
+                            text = habit,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        IconButton(onClick = {
+                            completedHabits = if (completedHabits.contains(habit)) {
+                                completedHabits - habit
+                            } else {
+                                completedHabits + habit
                             }
+                        }) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Toggle completion",
+                                tint = if (completedHabits.contains(habit)) 
+                                    MaterialTheme.colorScheme.primary 
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
