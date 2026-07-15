@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Everything4Droid A to APK"
+rootProject.name = "Mandela vs Matrix Re-Imaginator A to APK"
 include(":app")
