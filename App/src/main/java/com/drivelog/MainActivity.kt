@@ -96,7 +96,7 @@ fun HabitTrackerAppScreen() {
                                 if (index != -1) {
                                     habits[index] = habits[index].copy(completedToday = completed)
                                 }
-                            }
+                            } 
                         }
                     }
                 }
@@ -128,7 +128,8 @@ fun HabitTrackerAppScreen() {
                             unfocusedBorderColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f),
                             focusedLabelColor = MaterialTheme.colorScheme.primary,
                             unfocusedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                            textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            focusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -154,7 +155,7 @@ fun HabitTrackerAppScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitItem(habit: Habit, onToggleComplete: (Boolean) -> Unit) {
+fun HabitItem(habit: Habit, onToggleComplete: (Boolean) -> Unit) { 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
