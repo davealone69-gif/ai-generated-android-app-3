@@ -1,6 +1,6 @@
 name: Android CI Build
 
-on: 
+on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
