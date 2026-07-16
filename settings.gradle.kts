@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "Mandela vs Matrix Re-Imaginator A to APK"
-include(":App")
+include(":app")
