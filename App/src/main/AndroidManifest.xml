@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.drivelog">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:allowBackup="true"
-        android:label="Mandela vs Matrix Re-Imaginator A to APK App"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        android:label="Habit Tracker"> <!-- Removed explicit Android theme to allow Compose MaterialTheme to apply -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
