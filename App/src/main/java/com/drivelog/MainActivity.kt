@@ -186,7 +186,7 @@ fun HabitTrackerApp(viewModel: HabitViewModel) {
     var selectedFilter by remember { mutableStateOf("All") }
 
     Scaffold(
-        topBar = {
+        topBar = { 
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -293,11 +293,11 @@ fun HeroProgressDashboard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
         )
-    ) {
+    ) { 
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
-        ) {
+        ) { 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Track your Day",
@@ -318,7 +318,7 @@ fun HeroProgressDashboard(
                     label = "progress"
                 )
                 LinearProgressIndicator(
-                    progress = { animatedProgress },
+                    progress = animatedProgress,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp)
@@ -502,7 +502,7 @@ fun HabitItemRow(
 }
 
 @Composable
-fun EmptyStatePlaceholder(selectedFilter: String) {
+fun EmptyStatePlaceholder(selectedFilter: String) { 
     Box(
         modifier = Modifier
             .fillMaxSize()
