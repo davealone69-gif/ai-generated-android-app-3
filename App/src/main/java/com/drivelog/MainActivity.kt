@@ -1,19 +1,15 @@
 package com.drivelog
 
-import android.app.Application
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,677 +17,556 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val viewModel = ViewModelProvider(this)[HabitViewModel::class.java]
         setContent {
-            HabitTrackerTheme {
+            MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HabitTrackerApp(viewModel)
+                    HabitTrackerScreen()
                 }
             }
         }
     }
-}
-
-enum class HabitCategory(val displayName: String, val emoji: String, val colorLight: Color, val colorDark: Color) {
-    HEALTH("Health", "🏃", Color(0xFFE8F5E9), Color(0xFF2E7D32)),
-    MIND("Mind", "🧘", Color(0xFFE3F2FD), Color(0xFF1565C0)),
-    PRODUCTIVITY("Work", "📝", Color(0xFFFFF8E1), Color(0xFFF57F17)),
-    FINANCE("Finance", "💰", Color(0xFFF3E5F5), Color(0xFF6A1B9A)),
-    CREATIVITY("Art", "🎨", Color(0xFFFBE9E7), Color(0xFFD84315))
 }
 
 data class Habit(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
-    val category: HabitCategory = HabitCategory.HEALTH,
-    val streak: Int = 0,
-    val completedToday: Boolean = false,
-    val lastCompletedTimestamp: Long = 0L
+    val category: String,
+    val isCompletedToday: Boolean = false,
+    val streak: Int = 0
 )
 
-class HabitViewModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = application.getSharedPreferences("habit_tracker_prefs", Context.MODE_PRIVATE)
-    private val _habits = MutableStateFlow<List<Habit>>(emptyList())
-    val habits: StateFlow<List<Habit>> = _habits.asStateFlow()
-
-    init {
-        loadHabits()
+fun getCategoryColors(category: String): Pair<Color, Color> {
+    return when (category) {
+        "Health" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        "Mind" -> Color(0xFFE1F5FE) to Color(0xFF0277BD)
+        "Fitness" -> Color(0xFFFFF3E0) to Color(0xFFE65100)
+        "Work" -> Color(0xFFEDE7F6) to Color(0xFF651FFF)
+        else -> Color(0xFFECEFF1) to Color(0xFF37474F)
     }
-
-    private fun loadHabits() {
-        val jsonString = prefs.getString("habits_list", null)
-        if (jsonString != null) {
-            try {
-                val jsonArray = JSONArray(jsonString)
-                val list = mutableListOf<Habit>()
-                for (i in 0 until jsonArray.length()) {
-                    list.add(jsonToHabit(jsonArray.getJSONObject(i)))
-                }
-                _habits.value = list
-            } catch (e: Exception) {
-                _habits.value = getMockHabits()
-            }
-        } else {
-            _habits.value = getMockHabits()
-            saveHabits(_habits.value)
-        }
-    }
-
-    private fun saveHabits(list: List<Habit>) {
-        val jsonArray = JSONArray()
-        list.forEach { jsonArray.put(habitToJson(it)) }
-        prefs.edit().putString("habits_list", jsonArray.toString()).apply()
-    }
-
-    private fun habitToJson(habit: Habit): JSONObject {
-        val json = JSONObject()
-        json.put("id", habit.id)
-        json.put("name", habit.name)
-        json.put("category", habit.category.name)
-        json.put("streak", habit.streak)
-        json.put("completedToday", habit.completedToday)
-        json.put("lastCompletedTimestamp", habit.lastCompletedTimestamp)
-        return json
-    }
-
-    private fun jsonToHabit(json: JSONObject): Habit {
-        return Habit(
-            id = json.getString("id"),
-            name = json.getString("name"),
-            category = HabitCategory.valueOf(json.optString("category", HabitCategory.HEALTH.name)),
-            streak = json.getInt("streak"),
-            completedToday = json.getBoolean("completedToday"),
-            lastCompletedTimestamp = json.optLong("lastCompletedTimestamp", 0L)
-        )
-    }
-
-    fun addHabit(name: String, category: HabitCategory) {
-        if (name.isBlank()) return
-        val newHabit = Habit(
-            name = name.trim(),
-            category = category,
-            streak = 0,
-            completedToday = false,
-            lastCompletedTimestamp = 0L
-        )
-        val updated = _habits.value + newHabit
-        _habits.value = updated
-        saveHabits(updated)
-    }
-
-    fun toggleHabit(id: String) {
-        val updated = _habits.value.map { habit ->
-            if (habit.id == id) {
-                val nextCompleted = !habit.completedToday
-                val nextStreak = if (nextCompleted) habit.streak + 1 else maxOf(0, habit.streak - 1)
-                habit.copy(
-                    completedToday = nextCompleted,
-                    streak = nextStreak,
-                    lastCompletedTimestamp = if (nextCompleted) System.currentTimeMillis() else 0L
-                )
-            } else habit
-        }
-        _habits.value = updated
-        saveHabits(updated)
-    }
-
-    fun deleteHabit(id: String) {
-        val updated = _habits.value.filter { it.id != id }
-        _habits.value = updated
-        saveHabits(updated)
-    }
-
-    private fun getMockHabits(): List<Habit> = listOf(
-        Habit(name = "Drink 8 glasses of water", category = HabitCategory.HEALTH, streak = 5, completedToday = true),
-        Habit(name = "Read 10 pages of a book", category = HabitCategory.MIND, streak = 3, completedToday = false),
-        Habit(name = "30 minutes gym session", category = HabitCategory.HEALTH, streak = 12, completedToday = true),
-        Habit(name = "Practice mindful breathing", category = HabitCategory.MIND, streak = 0, completedToday = false)
-    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HabitTrackerApp(viewModel: HabitViewModel) {
-    val habits by viewModel.habits.collectAsState()
-    var showDialog by remember { mutableStateOf(false) }
+fun HabitTrackerScreen() {
+    var habits by remember {
+        mutableStateOf(
+            listOf(
+                Habit(name = "Drink 8 cups of water", category = "Health", isCompletedToday = true, streak = 5),
+                Habit(name = "15 mins meditation", category = "Mind", isCompletedToday = false, streak = 3),
+                Habit(name = "Morning stretching", category = "Fitness", isCompletedToday = true, streak = 12),
+                Habit(name = "Read non-fiction book", category = "Mind", isCompletedToday = false, streak = 0),
+                Habit(name = "Write daily code updates", category = "Work", isCompletedToday = false, streak = 8)
+            )
+        )
+    }
+
     var selectedFilter by remember { mutableStateOf("All") }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val categories = listOf("All", "Health", "Mind", "Fitness", "Work", "Other")
+    val filteredHabits = if (selectedFilter == "All") habits else habits.filter { it.category == selectedFilter }
+
+    val completedCount = habits.count { it.isCompletedToday }
+    val totalCount = habits.size
+    val progressFraction = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+    val progressPercentage = (progressFraction * 100).toInt()
+
+    val motivationMessage = when {
+        totalCount == 0 -> "Add some positive habits below to begin!"
+        progressPercentage == 0 -> "Let's kickstart today's positive changes! 💪"
+        progressPercentage < 50 -> "Great start! You're making steady progress. 🌱"
+        progressPercentage < 100 -> "Almost there! Keep pushing your limits! 🚀"
+        else -> "Absolute Champion! Perfect day completed! 🎉"
+    }
 
     Scaffold(
-        topBar = { 
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "HabitFlow",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                )
-            )
-        },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showDialog = true },
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp),
-                icon = { Icon(Icons.Default.Add, contentDescription = "Add Habit") },
-                text = { Text("New Habit") }
-            )
+                shape = CircleShape,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Habit",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            val totalCount = habits.size
-            val completedCount = habits.count { it.completedToday }
-            val completionRate = if (totalCount > 0) (completedCount.toFloat() / totalCount * 100).toInt() else 0
-
-            HeroProgressDashboard(
-                completedCount = completedCount,
-                totalCount = totalCount,
-                completionRate = completionRate
-            )
-
-            FilterChipRow(
-                selectedFilter = selectedFilter,
-                onFilterSelected = { selectedFilter = it }
-            )
-
-            val filteredHabits = remember(habits, selectedFilter) {
-                when (selectedFilter) {
-                    "Done" -> habits.filter { it.completedToday }
-                    "Pending" -> habits.filter { !it.completedToday }
-                    else -> habits
+            // Header Custom App Bar Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "HabitFlow",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Track your daily self-growth",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                 }
             }
 
-            AnimatedContent(
-                targetState = filteredHabits.isEmpty(),
-                label = "list_state"
-            ) { isEmpty ->
-                if (isEmpty) {
-                    EmptyStatePlaceholder(selectedFilter)
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Motivation Banner Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(filteredHabits, key = { it.id }) { habit ->
-                            HabitItemRow(
-                                habit = habit,
-                                onToggle = { viewModel.toggleHabit(habit.id) },
-                                onDelete = { viewModel.deleteHabit(habit.id) }
-                            )
-                        }
+                        Text(
+                            text = "Today's Progress",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "$completedCount of $totalCount",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = progressFraction,
+                        label = "progress"
+                    )
+
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = motivationMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Categories Filter Section
+            Text(
+                text = "Categories",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(categories) { category ->
+                    CustomFilterChip(
+                        text = category,
+                        isSelected = selectedFilter == category,
+                        onClick = { selectedFilter = category }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Habits Section Header
+            Text(
+                text = if (selectedFilter == "All") "My Habits" else "$selectedFilter Habits",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Habits List
+            if (filteredHabits.isEmpty()) {
+                EmptyHabitState(selectedFilter)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    items(filteredHabits, key = { it.id }) { habit ->
+                        HabitItem(
+                            habit = habit,
+                            onToggle = {
+                                habits = habits.map {
+                                    if (it.id == habit.id) {
+                                        val nextCompleted = !it.isCompletedToday
+                                        val nextStreak = if (nextCompleted) it.streak + 1 else maxOf(0, it.streak - 1)
+                                        it.copy(isCompletedToday = nextCompleted, streak = nextStreak)
+                                    } else {
+                                        it
+                                    }
+                                }
+                            },
+                            onDelete = {
+                                habits = habits.filter { it.id != habit.id }
+                            }
+                        )
                     }
                 }
             }
         }
-    }
 
-    if (showDialog) {
-        AddHabitDialog(
-            onDismiss = { showDialog = false },
-            onSave = { name, category ->
-                viewModel.addHabit(name, category)
-                showDialog = false
-            }
-        )
-    }
-}
-
-@Composable
-fun HeroProgressDashboard(
-    completedCount: Int,
-    totalCount: Int,
-    completionRate: Int
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
-        )
-    ) { 
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) { 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Track your Day",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$completedCount of $totalCount completed today",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                val animatedProgress by animateFloatAsState(
-                    targetValue = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f,
-                    animationSpec = tween(500),
-                    label = "progress"
-                )
-                LinearProgressIndicator(
-                    progress = animatedProgress,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(MaterialTheme.colorScheme.surface, CircleShape)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "$completionRate%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+        // Show Create Dialog
+        if (showAddDialog) {
+            AddHabitDialog(
+                onDismiss = { showAddDialog = false },
+                onAddHabit = { name, category ->
+                    val newHabit = Habit(
+                        name = name,
+                        category = category,
+                        isCompletedToday = false,
+                        streak = 0
                     )
-                    Text(
-                        text = "DONE",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                    )
+                    habits = habits + newHabit
+                    showAddDialog = false
                 }
-            }
+            )
         }
     }
 }
 
 @Composable
-fun FilterChipRow(
-    selectedFilter: String,
-    onFilterSelected: (String) -> Unit
-) {
-    val filters = listOf("All", "Pending", "Done")
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        filters.forEach { filter ->
-            val isSelected = selectedFilter == filter
-            val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-            val containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(containerColor)
-                    .clickable { onFilterSelected(filter) }
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = filter,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun HabitItemRow(
+fun HabitItem(
     habit: Habit,
     onToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val categoryBg = if (isDark) habit.category.colorDark else habit.category.colorLight
-    val categoryText = if (isDark) habit.category.colorLight else habit.category.colorDark
+    val categoryColors = getCategoryColors(habit.category)
+    val checkColor by animateColorAsState(
+        targetValue = if (habit.isCompletedToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "checkColor"
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Interactive Complete Circle Checkbox
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(categoryBg),
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (habit.isCompletedToday) checkColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                    )
+                    .clickable { onToggle() }
+                    .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = habit.category.emoji,
-                    style = MaterialTheme.typography.titleLarge
-                )
+                if (habit.isCompletedToday) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Completed",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Habit Details
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Category Chip Badge
+                Box(
+                    modifier = Modifier
+                        .background(categoryColors.first, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = habit.category,
+                        color = categoryColors.second,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
                     text = habit.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (habit.isCompletedToday) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(categoryBg.copy(alpha = 0.4f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = habit.category.displayName,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = categoryText
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Streak",
-                        tint = Color(0xFFFF9100),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
+
+                if (habit.streak > 0) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${habit.streak} Days",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "🔥 ${habit.streak} day streak",
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFE65100)
                     )
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledIconToggleButton(
-                    checked = habit.completedToday,
-                    onCheckedChange = { onToggle() },
-                    colors = IconButtonDefaults.filledIconToggleButtonColors(
-                        checkedContainerColor = MaterialTheme.colorScheme.primary,
-                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Complete Habit"
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Habit",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                    )
-                }
+
+            // Delete Action
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete Habit",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                )
             }
         }
     }
 }
 
 @Composable
-fun EmptyStatePlaceholder(selectedFilter: String) { 
+fun CustomFilterChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.offset(y = (-40).dp)
-        ) {
-            Text(
-                text = "✨",
-                fontSize = 54.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = when (selectedFilter) {
-                    "Done" -> "No completed habits yet!"
-                    "Pending" -> "Hooray! All caught up!"
-                    else -> "Start your journey!"
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Small choices define your destiny. Tap the button to design a new positive habit.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-        }
+        Text(
+            text = text,
+            color = textColor,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun CustomCategoryChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val categoryColors = getCategoryColors(text)
+    val backgroundColor = if (isSelected) categoryColors.second else categoryColors.first
+    val textColor = if (isSelected) Color.White else categoryColors.second
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun EmptyHabitState(category: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "✨",
+            fontSize = 48.sp,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = if (category == "All") "No habits tracked yet" else "No habits under '$category'",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "Tap the '+' button down below to construct positive habits and daily goals!",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+}
+
 @Composable
 fun AddHabitDialog(
     onDismiss: () -> Unit,
-    onSave: (String, HabitCategory) -> Unit
+    onAddHabit: (name: String, category: String) -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(HabitCategory.HEALTH) }
+    var habitName by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Health") }
+    val categories = listOf("Health", "Mind", "Fitness", "Work", "Other")
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        Surface(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "Build a Habit",
+                    text = "Create New Habit",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.primary
                 )
+                
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = { Text("Enter habit name...") },
+                    value = habitName,
+                    onValueChange = { habitName = it },
+                    label = { Text("Habit Name") },
+                    placeholder = { Text("e.g. Read for 15 mins") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Select Category",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "Category",
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Start)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    HabitCategory.values().forEach { category ->
-                        val isSelected = category == selectedCategory
-                        val lightColor = if (isSystemInDarkTheme()) category.colorDark else category.colorLight
-                        val textAndBorder = if (isSystemInDarkTheme()) category.colorLight else category.colorDark
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) lightColor else Color.Transparent)
-                                .clickable { selectedCategory = category }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(category.emoji, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = category.displayName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) textAndBorder else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                    items(categories) { category ->
+                        CustomCategoryChip(
+                            text = category,
+                            isSelected = category == selectedCategory,
+                            onClick = { selectedCategory = category }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
+                    TextButton(onClick = onDismiss) {
                         Text("Cancel")
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = { onSave(text, selectedCategory) },
-                        enabled = text.isNotBlank(),
-                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            if (habitName.isNotBlank()) {
+                                onAddHabit(habitName.trim(), selectedCategory)
+                            }
+                        },
+                        enabled = habitName.isNotBlank(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Save")
+                        Text("Add Habit")
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-fun HabitTrackerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    val lightColorScheme = lightColorScheme(
-        primary = Color(0xFF6750A4),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFEADDFF),
-        onPrimaryContainer = Color(0xFF21005D),
-        secondary = Color(0xFF625B71),
-        secondaryContainer = Color(0xFFE8DEF8),
-        onSecondaryContainer = Color(0xFF1D192B),
-        background = Color(0xFFFEF7FF),
-        surface = Color(0xFFFFFFFF),
-        onSurface = Color(0xFF1D1B20),
-        onSurfaceVariant = Color(0xFF49454F),
-        error = Color(0xFFB3261E)
-    )
-
-    val darkColorScheme = darkColorScheme(
-        primary = Color(0xFFD0BCFF),
-        onPrimary = Color(0xFF381E72),
-        primaryContainer = Color(0xFF4F378B),
-        onPrimaryContainer = Color(0xFFEADDFF),
-        secondary = Color(0xFFCCC2DC),
-        secondaryContainer = Color(0xFF4A4458),
-        onSecondaryContainer = Color(0xFFE8DEF8),
-        background = Color(0xFF141218),
-        surface = Color(0xFF1D1B20),
-        onSurface = Color(0xFFE6E1E5),
-        onSurfaceVariant = Color(0xFFCAC4D0),
-        error = Color(0xFFF2B8B5)
-    )
-
-    val colors = if (darkTheme) darkColorScheme else lightColorScheme
-
-    MaterialTheme(
-        colorScheme = colors,
-        typography = Typography(),
-        content = content
-    )
 }
