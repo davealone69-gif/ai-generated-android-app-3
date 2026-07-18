@@ -121,7 +121,7 @@ fun HabitTrackerScreen() {
                 .padding(innerPadding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        ) { 
             // Summary progress card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -155,7 +155,7 @@ fun HabitTrackerScreen() {
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     LinearProgressIndicator(
-                        progress = { completionProgress },
+                        progress = completionProgress,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
