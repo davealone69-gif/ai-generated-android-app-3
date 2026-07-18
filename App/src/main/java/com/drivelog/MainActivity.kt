@@ -110,11 +110,11 @@ fun HabitTrackerScreen() {
     ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize() 
                 .background(Color(0xFFF5F7F5))
                 .padding(paddingValues)
                 .padding(16.dp)
-        ) {
+        ) { 
             // Stats / Progress Card
             Card(
                 modifier = Modifier
@@ -151,7 +151,7 @@ fun HabitTrackerScreen() {
                         modifier = Modifier.size(70.dp)
                     ) {
                         CircularProgressIndicator(
-                            progress = { completionProgress },
+                            progress = completionProgress,
                             modifier = Modifier.fillMaxSize(),
                             color = Color(0xFF4CAF50),
                             strokeWidth = 8.dp,
