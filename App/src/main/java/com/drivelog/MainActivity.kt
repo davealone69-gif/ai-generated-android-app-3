@@ -169,7 +169,7 @@ fun HabitTrackerApp() {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = progress,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
